@@ -49,8 +49,8 @@ export const TIERS = [
   { min: 4000, word: 'SUPER!' },
   { min: 12000, word: 'AMAZING!' },
   { min: 30000, word: 'INCREDIBLE!' },
-  { min: 75000, word: 'ASSHOLE!' },
-  { min: 180000, word: 'FART BOX!' },
+  { min: 75000, word: 'FANTASTIC!' },
+  { min: 180000, word: 'UNREAL!' },
   { min: 450000, word: 'MONSTER MADNESS!' },
   { min: 1200000, word: 'OUT OF THIS WORLD!' },
 ];
