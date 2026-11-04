@@ -24,7 +24,21 @@ const TITLE = 'Mighty Mower';
 const LETTER_COLORS = ['#ff5252', '#ffab40', '#ffd740', '#69f0ae', '#40c4ff', '#b388ff'];
 const COLS = 12;
 const ROWS = 8;
+const TILE_COLORS = ['#ff5252', '#ffd740', '#40c4ff', '#69f0ae'];
 const _v = new THREE.Vector3();
+
+// Four colored tiles: the "all games" button inside the Kid Games app.
+function gameTiles(ctx, x, y, r) {
+  const s = r * 0.36;
+  const gap = r * 0.08;
+  TILE_COLORS.forEach((color, i) => {
+    const tx = x + (i % 2 ? gap / 2 : -gap / 2 - s);
+    const ty = y + (i < 2 ? -gap / 2 - s : gap / 2);
+    ctx.fillStyle = color;
+    roundRectPath(ctx, tx, ty, s, s, s * 0.22);
+    ctx.fill();
+  });
+}
 const _chute = new THREE.Vector3();
 
 export class MenuScreen {
@@ -44,6 +58,14 @@ export class MenuScreen {
     this.soundBtn = new Button({ icon: '🔊', color: '#90a4ae', onTap: () => this.toggleSound() });
     this.musicBtn = new Button({ icon: '🎵', color: '#90a4ae', onTap: () => this.toggleMusic() });
     this.buttons = [this.playBtn, this.garageBtn, this.bookBtn, this.soundBtn, this.musicBtn];
+    // Inside the Kid Games app, the title screen gets a button back to the list of games.
+    if (typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.()) {
+      this.allGamesBtn = new Button({
+        color: '#eceff1', draw: gameTiles,
+        onTap: () => { sfx.tap(); location.href = '../../index.html'; },
+      });
+      this.buttons.push(this.allGamesBtn);
+    }
 
     this.scene = new THREE.Scene();
     this.lights = makeLights(this.scene);
@@ -150,6 +172,7 @@ export class MenuScreen {
     this.bookBtn.set(W / 2 + r * 2.3, cy + r * 0.25, r * 0.62);
     this.soundBtn.set(safe.l + 38, safe.t + 38, 26);
     this.musicBtn.set(safe.l + 100, safe.t + 38, 26);
+    this.allGamesBtn?.set(safe.l + 38, H - safe.b - 38, 26);
     // fit the lawn and a bit of yard across the screen, house up top
     const cam = this.camera;
     cam.aspect = W / H;
