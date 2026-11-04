@@ -106,6 +106,10 @@ const arrowRight = document.getElementById('arrow-right');
 const honkEl = document.getElementById('honk');
 const garageEl = document.getElementById('garage');
 
+// Inside the Kid Games app, the truck picker gets a button back to the list of games.
+const allGamesEl = document.getElementById('all-games');
+if (window.Capacitor?.isNativePlatform?.()) allGamesEl.classList.remove('hidden');
+
 const store = {
   get(key, fallback) {
     try { const v = localStorage.getItem(key); return v === null ? fallback : JSON.parse(v); } catch { return fallback; }
@@ -208,6 +212,9 @@ const input = new Input({
       sfx.init();
       sfx.honk();
       honkEl.classList.add('on');
+    } else if (btn === 'games') {
+      el.classList.add('on');
+      location.href = '../../index.html';
     } else if (btn === 'garage') {
       garageEl.classList.add('holding');
       clearTimeout(garageTimer);
