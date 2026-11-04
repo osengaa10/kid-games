@@ -7,9 +7,15 @@
     <title>Kid Games</title>
     <style>
       :root {
-        --card: min(27vw, 52vh);
-        --ring: clamp(5px, 1.1vmin, 10px);
-        --font: ui-rounded, 'SF Pro Rounded', 'Arial Rounded MT Bold', system-ui, sans-serif;
+        --bg: #1f72b4;
+        --bubble: rgba(255, 255, 255, 0.07);
+        --hill: #1f9bab;
+        --ink: #163a63;
+        --gap: clamp(14px, 3.6vw, 56px);
+        /* Card width: three across, small enough that the cards and the heading fit the height. */
+        --card: min(28vw, calc((100dvh - 15rem) / 1.36), 420px);
+        --radius: clamp(16px, calc(var(--card) * 0.07), 30px);
+        --font: system-ui, -apple-system, 'Helvetica Neue', sans-serif;
       }
       html,
       body {
@@ -27,29 +33,37 @@
       body {
         position: fixed;
         inset: 0;
-        background: linear-gradient(#3aa6f5, #c9ecff 75%);
+        background: var(--bg);
         font-family: var(--font);
+        color: #fff;
       }
 
-      /* The scenery: a sun, clouds and two hills. */
-      .sky {
+      /* Background shapes: two soft circles and a teal hill. */
+      .shape {
         position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
+        border-radius: 50%;
         pointer-events: none;
       }
-      .sun {
-        transform-box: fill-box;
-        transform-origin: center;
-        animation: spin 30s linear infinite;
+      .shape.a {
+        width: 95vmax;
+        height: 60vmax;
+        left: -38vmax;
+        top: -38vmax;
+        background: var(--bubble);
       }
-      .cloud {
-        animation: drift 14s ease-in-out infinite alternate;
+      .shape.b {
+        width: 80vmax;
+        height: 80vmax;
+        right: -42vmax;
+        top: -12vmax;
+        background: var(--bubble);
       }
-      .cloud.b {
-        animation-duration: 19s;
-        animation-direction: alternate-reverse;
+      .shape.hill {
+        width: 120vmax;
+        height: 70vmax;
+        left: -42vmax;
+        bottom: -42vmax;
+        background: var(--hill);
       }
 
       main {
@@ -59,142 +73,160 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: clamp(14px, 4vh, 40px);
-        padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+        gap: clamp(18px, 5vh, 64px);
+        padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom))
+          max(16px, env(safe-area-inset-left));
+        box-sizing: border-box;
       }
 
+      header {
+        text-align: center;
+      }
       h1 {
         margin: 0;
-        font-size: clamp(40px, 9vmin, 96px);
-        font-weight: 900;
-        line-height: 1;
-        letter-spacing: 2px;
-        -webkit-text-stroke: clamp(2px, 0.5vmin, 5px) #fff;
-        paint-order: stroke fill;
-        text-shadow: 0 6px 0 rgba(0, 0, 0, 0.18);
+        font-size: clamp(30px, 6.4vmin, 84px);
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        line-height: 1.05;
+        text-shadow: 0 3px 0 rgba(0, 0, 0, 0.12);
       }
-      h1 span {
-        display: inline-block;
-        animation: hop 2.4s ease-in-out infinite;
-      }
-      .tagline {
-        margin: calc(-1 * clamp(8px, 2.5vh, 26px)) 0 0;
-        font-size: clamp(13px, 2.1vmin, 20px);
-        font-weight: 700;
-        color: #1d5f99;
-        opacity: 0.8;
+      .hint {
+        margin: 0.35em 0 0;
+        font-size: clamp(15px, 2.6vmin, 30px);
+        opacity: 0.88;
       }
 
       .games {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         justify-content: center;
-        gap: clamp(16px, 4vmin, 48px);
+        gap: var(--gap);
       }
       .game {
         width: var(--card);
-        aspect-ratio: 1;
+        container-type: inline-size;
+        display: flex;
+        flex-direction: column;
         padding: 0;
-        border: var(--ring) solid #fff;
-        border-radius: clamp(22px, 5vmin, 44px);
+        border: 0;
+        border-radius: var(--radius);
         overflow: hidden;
         background: #fff;
-        box-shadow: 0 calc(var(--ring) * 1.6) 0 rgba(0, 0, 0, 0.18), 0 16px 30px rgba(0, 0, 0, 0.22);
+        box-shadow: 0 18px 36px rgba(6, 30, 60, 0.35);
+        font: inherit;
         cursor: pointer;
         touch-action: manipulation;
-        animation: bob 2.8s ease-in-out infinite;
+        animation: bob 3.2s ease-in-out infinite;
       }
       .game:nth-child(2) {
-        animation-delay: -0.9s;
+        animation-delay: -1.07s;
       }
       .game:nth-child(3) {
-        animation-delay: -1.8s;
+        animation-delay: -2.13s;
       }
       .game img {
         display: block;
         width: 100%;
-        height: 100%;
+        aspect-ratio: 1;
+        object-fit: cover;
         pointer-events: none;
+      }
+      .game span {
+        display: grid;
+        place-items: center;
+        min-height: 36cqi;
+        padding: 0 4cqi;
+        border-top: 1px solid #e6ebf1;
+        color: var(--ink);
+        font-size: 8.6cqi;
+        font-weight: 800;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        white-space: nowrap;
       }
       .game.on {
         animation: none;
-        transform: scale(0.9);
+        transform: scale(0.93);
         transition: transform 0.1s;
       }
 
-      /* An iPad held upright: stack the games. */
-      @media (orientation: portrait) {
+      .tagline {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: max(10px, env(safe-area-inset-bottom));
+        margin: 0;
+        text-align: center;
+        font-size: clamp(11px, 1.6vmin, 16px);
+        font-style: italic;
+        opacity: 0.6;
+        pointer-events: none;
+      }
+
+      /* A phone held upright: stack the games, picture beside the name. */
+      @media (max-aspect-ratio: 5/8) {
         :root {
-          --card: min(56vw, 22vh);
+          --card: min(88vw, 460px);
         }
         .games {
           flex-direction: column;
+          align-items: center;
+        }
+        .game {
+          flex-direction: row;
+          align-items: stretch;
+        }
+        .game img {
+          width: 38%;
+        }
+        .game span {
+          flex: 1;
+          min-height: 0;
+          border-top: 0;
+          border-left: 1px solid #e6ebf1;
+          font-size: 6.2cqi;
+          white-space: normal;
+          text-align: center;
         }
       }
 
       @keyframes bob {
-        0%, 100% { transform: translateY(0) rotate(-1.5deg); }
-        50% { transform: translateY(-12px) rotate(1.5deg); }
-      }
-      @keyframes hop {
-        0%, 70%, 100% { transform: translateY(0); }
-        80% { transform: translateY(-10px); }
-      }
-      @keyframes spin {
-        to { transform: rotate(360deg); }
-      }
-      @keyframes drift {
-        to { transform: translateX(40px); }
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-8px); }
       }
       @media (prefers-reduced-motion: reduce) {
-        *, *::before, *::after { animation: none !important; }
+        .game { animation: none; }
       }
     </style>
   </head>
   <body>
-    <svg class="sky" viewBox="0 0 400 300" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
-      <g class="sun">
-        <circle cx="350" cy="46" r="22" fill="#ffe14d" />
-        <path d="M350 14v-8M350 78v8M318 46h-8M382 46h8M327 23l-6-6M373 69l6 6M327 69l-6 6M373 23l6-6" stroke="#ffe14d" stroke-width="4" stroke-linecap="round" />
-      </g>
-      <g fill="#fff" opacity="0.95">
-        <g class="cloud"><circle cx="40" cy="50" r="12" /><circle cx="56" cy="42" r="16" /><circle cx="73" cy="50" r="11" /></g>
-        <g class="cloud b"><circle cx="230" cy="34" r="9" /><circle cx="243" cy="28" r="12" /><circle cx="256" cy="35" r="8" /></g>
-      </g>
-      <path d="M-20 262q110-46 220-8t220-4V320H-20z" fill="#7bd36a" />
-      <path d="M-20 284q140-26 260-4t180 2V320H-20z" fill="#5cc94f" />
-      <g fill="#ff5d73"><circle cx="40" cy="292" r="3" /><circle cx="150" cy="298" r="3" /><circle cx="300" cy="294" r="3" /></g>
-      <g fill="#ffd23f"><circle cx="90" cy="298" r="3" /><circle cx="230" cy="292" r="3" /><circle cx="360" cy="298" r="3" /></g>
-    </svg>
+    <div class="shape a" aria-hidden="true"></div>
+    <div class="shape b" aria-hidden="true"></div>
+    <div class="shape hill" aria-hidden="true"></div>
 
     <main>
-      <h1 aria-label="Kid Games"></h1>
-      <p class="tagline">Games for kids who can't read good</p>
+      <header>
+        <h1>CHOOSE AN ADVENTURE!</h1>
+        <p class="hint">Tap a picture to play</p>
+      </header>
       <nav class="games">
-        <button class="game" data-game="lawn-mower" data-say="Mighty Mower!" aria-label="Mighty Mower">
-          <img src="games/lawn-mower/icons/icon-512.png" alt="" />
+        <button class="game" data-game="lawn-mower" data-say="Mighty Mower!">
+          <img src="images/lawn-mower.jpg" alt="" />
+          <span>Mighty Mower</span>
         </button>
-        <button class="game" data-game="roller-coaster" data-say="Coaster Doodle!" aria-label="Coaster Doodle">
-          <img src="games/roller-coaster/icons/icon-512.png" alt="" />
+        <button class="game" data-game="roller-coaster" data-say="Coaster Doodle!">
+          <img src="images/roller-coaster.jpg" alt="" />
+          <span>Coaster Doodle</span>
         </button>
-        <button class="game" data-game="monster-truck" data-say="Monster Truck!" aria-label="Monster Truck">
-          <img src="games/monster-truck/icons/icon-512.png" alt="" />
+        <button class="game" data-game="monster-truck" data-say="Monster Truck!">
+          <img src="images/monster-truck.jpg" alt="" />
+          <span>Monster Truck</span>
         </button>
       </nav>
     </main>
+    <p class="tagline">Kid Games · for kids who can't read good</p>
 
     <script>
-      // The title, one candy color per letter, each hopping in turn.
-      const COLORS = ['#ff5252', '#ffab40', '#ffd740', '#69f0ae', '#40c4ff', '#b388ff'];
-      const h1 = document.querySelector('h1');
-      [...'Kid Games'].forEach((ch, i) => {
-        const s = document.createElement('span');
-        s.textContent = ch === ' ' ? ' ' : ch;
-        s.style.color = COLORS[i % COLORS.length];
-        s.style.animationDelay = `${i * 0.08}s`;
-        h1.appendChild(s);
-      });
-
       // A little "pop" so a tap feels like it did something.
       let audio;
       function pop() {
@@ -215,13 +247,13 @@
         }
       }
 
+      // Say the game's name, for kids who can't read the card yet.
       function say(text) {
         try {
           const synth = window.speechSynthesis;
           if (!synth) return;
           synth.cancel();
           const u = new SpeechSynthesisUtterance(text);
-          u.rate = 1;
           u.pitch = 1.2;
           synth.speak(u);
         } catch {
