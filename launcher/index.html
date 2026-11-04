@@ -84,7 +84,9 @@
       }
       h1 {
         margin: 0;
-        font-size: clamp(30px, 6.4vmin, 84px);
+        /* A long line: sized to fit one line across a tablet, wrapping evenly on a narrow phone. */
+        font-size: clamp(26px, min(6.4vmin, 3.6vw), 84px);
+        text-wrap: balance;
         font-weight: 800;
         letter-spacing: 0.04em;
         line-height: 1.05;
@@ -150,19 +152,6 @@
         transition: transform 0.1s;
       }
 
-      .tagline {
-        position: absolute;
-        left: 0;
-        right: 0;
-        bottom: max(10px, env(safe-area-inset-bottom));
-        margin: 0;
-        text-align: center;
-        font-size: clamp(11px, 1.6vmin, 16px);
-        font-style: italic;
-        opacity: 0.6;
-        pointer-events: none;
-      }
-
       /* A phone held upright: stack the games, picture beside the name. */
       @media (max-aspect-ratio: 5/8) {
         :root {
@@ -206,7 +195,7 @@
 
     <main>
       <header>
-        <h1>CHOOSE AN ADVENTURE!</h1>
+        <h1>GAMES FOR KIDS WHO CAN'T READ GOOD</h1>
         <p class="hint">Tap a picture to play</p>
       </header>
       <nav class="games">
@@ -224,7 +213,6 @@
         </button>
       </nav>
     </main>
-    <p class="tagline">Kid Games · for kids who can't read good</p>
 
     <script>
       // A little "pop" so a tap feels like it did something.
