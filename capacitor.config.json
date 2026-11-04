@@ -1,0 +1,11 @@
+{
+  "appId": "io.github.osengaa10.kidgames",
+  "appName": "Kid Games",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "never",
+    "scrollEnabled": false,
+    "allowsLinkPreview": false,
+    "backgroundColor": "#8fd3ff"
+  }
+}

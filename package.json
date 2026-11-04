@@ -1,0 +1,21 @@
+{
+  "name": "kid-games",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Kid Games: Mighty Mower, Coaster Doodle and Monster Truck in one iPad app. No ads, no sign-up, no internet.",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/sync-games.mjs",
+    "sync": "npm run build && npx cap sync ios",
+    "open": "npx cap open ios",
+    "ios": "npm run sync && npx cap run ios",
+    "serve": "npm run build && cd www && python3 -m http.server 8080"
+  },
+  "dependencies": {
+    "@capacitor/core": "^8.6.0",
+    "@capacitor/ios": "^8.6.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.6.0"
+  }
+}
