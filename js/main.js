@@ -206,6 +206,12 @@ tap('pick-slide', () => {
   sound.pop();
   pick('slide');
 });
+// Inside the Kid Games app, the picture picker gets a button back to the list of games.
+if (window.Capacitor?.isNativePlatform?.()) document.body.classList.add('in-app');
+tap('all-games', () => {
+  sound.pop();
+  location.href = '../../index.html';
+});
 tap('picker', () => {
   sound.pop();
   show('pick');

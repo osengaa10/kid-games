@@ -134,6 +134,20 @@ canvas.layer {
   bottom: max(var(--edge), env(safe-area-inset-bottom));
   background: #06d6a0;
 }
+/* Kid Games app only: back to the list of games */
+#all-games {
+  display: none;
+  position: absolute;
+  left: max(var(--edge), env(safe-area-inset-left));
+  bottom: max(var(--edge), env(safe-area-inset-bottom));
+  background: #fff;
+}
+.in-app #all-games {
+  display: grid;
+}
+#all-games svg {
+  stroke: none;
+}
 #go.disabled {
   opacity: 0.35;
   filter: grayscale(0.6);
