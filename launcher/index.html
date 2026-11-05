@@ -11,9 +11,9 @@
         --bubble: rgba(255, 255, 255, 0.07);
         --hill: #1f9bab;
         --ink: #163a63;
-        --gap: clamp(14px, 3.6vw, 56px);
-        /* Card width: three across, small enough that the cards and the heading fit the height. */
-        --card: min(28vw, calc((100dvh - 15rem) / 1.36), 420px);
+        --gap: clamp(12px, 2.6vw, 44px);
+        /* Card width: four across, small enough that the cards and the heading fit the height. */
+        --card: min(21vw, calc((100dvh - 15rem) / 1.36), 380px);
         --radius: clamp(16px, calc(var(--card) * 0.07), 30px);
         --font: system-ui, -apple-system, 'Helvetica Neue', sans-serif;
       }
@@ -121,10 +121,13 @@
         animation: bob 3.2s ease-in-out infinite;
       }
       .game:nth-child(2) {
-        animation-delay: -1.07s;
+        animation-delay: -0.8s;
       }
       .game:nth-child(3) {
-        animation-delay: -2.13s;
+        animation-delay: -1.6s;
+      }
+      .game:nth-child(4) {
+        animation-delay: -2.4s;
       }
       .game img {
         display: block;
@@ -150,6 +153,17 @@
         animation: none;
         transform: scale(0.93);
         transition: transform 0.1s;
+      }
+
+      /* An iPad held upright: two rows of two. */
+      @media (max-aspect-ratio: 1/1) and (min-aspect-ratio: 5/8) {
+        :root {
+          --card: min(38vw, calc((100dvh - 15rem - var(--gap)) / 2.72), 380px);
+        }
+        .games {
+          display: grid;
+          grid-template-columns: repeat(2, var(--card));
+        }
       }
 
       /* A phone held upright: stack the games, picture beside the name. */
@@ -210,6 +224,10 @@
         <button class="game" data-game="monster-truck" data-say="Monster Truck!">
           <img src="images/monster-truck.jpg" alt="" />
           <span>Monster Truck</span>
+        </button>
+        <button class="game" data-game="gadget-glam" data-say="Gadget Glam!">
+          <img src="images/gadget-glam.jpg" alt="" />
+          <span>Gadget Glam</span>
         </button>
       </nav>
     </main>

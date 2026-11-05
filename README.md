@@ -1,14 +1,14 @@
 # Kid Games
 
-Mighty Mower, Coaster Doodle and Monster Truck in one iPad app. It has no ads, no sign-up, and needs no internet.
+Mighty Mower, Coaster Doodle, Monster Truck and Gadget Glam in one iPad app. It has no ads, no sign-up, and needs no internet.
 
-The games are made with [Capacitor](https://capacitorjs.com). The code for each game lives in its own repo (`lawn-mower`, `roller-coaster`, `monster-truck`), and those repos still work on GitHub Pages. The sync script looks for them next to this repo, then one folder further up. It looks in `GAMES_DIR` instead when that's set. This repo holds:
+The games are made with [Capacitor](https://capacitorjs.com). The code for each game lives in its own repo (`lawn-mower`, `roller-coaster`, `monster-truck`, `gadget-glam`), and those repos still work on GitHub Pages. The sync script looks for them next to this repo, then one folder further up. It looks in `GAMES_DIR` instead when that's set. This repo holds:
 
-- `launcher/`: the app's home screen, three big picture buttons.
-- `scripts/sync-games.mjs`: copies the launcher and the three games into `www/`, which Capacitor bundles into the app.
+- `launcher/`: the app's home screen, four big picture buttons.
+- `scripts/sync-games.mjs`: copies the launcher and the four games into `www/`, which Capacitor bundles into the app.
 - `ios/`: the Xcode project.
 
-Inside the app, each game's title screen shows an extra round button with four colored tiles. It goes back to the game list. The button only shows up in the app, not on the web.
+Inside the app, each game's title screen (Gadget Glam's home screen) shows an extra round button with four colored tiles. It goes back to the game list. The button only shows up in the app, not on the web.
 
 ## Everyday commands
 
@@ -50,7 +50,7 @@ In Terminal, in this repo:
 
 ```sh
 npm install      # first time after cloning only
-npm run sync     # copies the three games into the app
+npm run sync     # copies the four games into the app
 npm run open     # opens the project in Xcode
 ```
 
@@ -138,6 +138,9 @@ The home screen (`launcher/index.html`) follows the mockup in `assets/cards/laun
 swift scripts/crop-image.swift assets/cards/lawn-mower.png     0  0 1024 768 launcher/images/lawn-mower.jpg
 swift scripts/crop-image.swift assets/cards/roller-coaster.png 85 80 830 768 launcher/images/roller-coaster.jpg  # white corner top-left, black notch right
 swift scripts/crop-image.swift assets/cards/monster-truck.png  30  0 880 768 launcher/images/monster-truck.jpg   # white corner bottom-right
+swift scripts/crop-image.swift assets/cards/gadget-glam.png    0  0 1024 768 launcher/images/gadget-glam.jpg
 ```
 
 The numbers are `x y size` of the square to keep, in source pixels from the top-left corner.
+
+Gadget Glam's picture isn't drawn art like the others. The game draws it itself: open the game with `?card=1024` (for example http://localhost:8888/?card=1024 with `npm start` in `gadget-glam`) and save the canvas as `assets/cards/gadget-glam.png`. To match the other cards, replace that file with drawn art and run its crop line again.

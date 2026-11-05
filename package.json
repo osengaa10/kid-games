@@ -2,7 +2,7 @@
   "name": "kid-games",
   "private": true,
   "version": "1.0.0",
-  "description": "Kid Games: Mighty Mower, Coaster Doodle and Monster Truck in one iPad app. No ads, no sign-up, no internet.",
+  "description": "Kid Games: Mighty Mower, Coaster Doodle, Monster Truck and Gadget Glam in one iPad app. No ads, no sign-up, no internet.",
   "type": "module",
   "scripts": {
     "build": "node scripts/sync-games.mjs",

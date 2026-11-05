@@ -1,6 +1,7 @@
 // Builds www/ (what Capacitor bundles into the app) from the launcher and the
-// three game repos: lawn-mower, roller-coaster and monster-truck. The game repos
-// stay the one place the games are edited, and they keep working on GitHub Pages.
+// four game repos: lawn-mower, roller-coaster, monster-truck and gadget-glam. The
+// game repos stay the one place the games are edited, and they keep working on
+// GitHub Pages.
 //
 // The game repos are looked for in GAMES_DIR if set, otherwise in the folder
 // next to this repo (../) and then one level up (../../).
@@ -12,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const WWW = path.join(ROOT, 'www');
-const GAMES = ['lawn-mower', 'roller-coaster', 'monster-truck'];
+const GAMES = ['lawn-mower', 'roller-coaster', 'monster-truck', 'gadget-glam'];
 
 const candidates = process.env.GAMES_DIR
   ? [path.resolve(process.env.GAMES_DIR)]
