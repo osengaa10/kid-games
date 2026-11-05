@@ -1,17 +1,26 @@
 // The tilted "toy diorama" camera. It never rotates, so left is always left.
 // It frames the whole lawn when it can and follows the mower when the lawn
 // would otherwise make the mower too small to see.
+// It can also glide down into the driver's seat (fp = 1) and back up.
 import { THREE } from './renderer.js';
 import { clamp, lerp } from '../util.js';
 
 const DEG = Math.PI / 180;
+const FP_FOV_H = 75 * DEG; // how wide the driver sees, side to side
+const FP_TIME = 0.9; // seconds to glide in or out of the seat
 const _v = new THREE.Vector3();
+const _topPos = new THREE.Vector3();
+const _topQ = new THREE.Quaternion();
+const _fpQ = new THREE.Quaternion();
 const _ndc = new THREE.Vector2();
 const _ray = new THREE.Raycaster();
 
 export class CameraRig {
   constructor(fov = 38) {
     this.camera = new THREE.PerspectiveCamera(fov, 1, 0.3, 500);
+    this.baseFov = fov;
+    this.fp = 0; // 0 = up high, 1 = in the driver's seat
+    this.fpTarget = 0;
     this.W = 1;
     this.H = 1;
     this.hud = 0;
@@ -69,7 +78,7 @@ export class CameraRig {
   // The farthest the camera can be while a thing `size` cells long still looks `minPx` big.
   maxDistFor(size, minPx) {
     const fullH = this.H + this.hud;
-    return (size * fullH) / 2 / (Math.tan((this.camera.fov * DEG) / 2) * minPx);
+    return (size * fullH) / 2 / (Math.tan((this.baseFov * DEG) / 2) * minPx);
   }
 
   boxPoints(x0, z0, x1, z1, y1 = 0) {
@@ -79,16 +88,38 @@ export class CameraRig {
   }
 
   // Frame a lawn of cols x rows cells. mowerLen is how long the mower is, in cells.
-  fitLawn(cols, rows, maxH, mowerLen) {
+  // zoomOut > 1 pulls back further, so the mower looks smaller and more lawn shows.
+  fitLawn(cols, rows, maxH, mowerLen, zoomOut = 1) {
     this.center = new THREE.Vector3(cols / 2, 0, rows / 2);
     this.bounds = { cols, rows };
+    // fit with the overhead lens, even if we're in the driver's seat right now
+    const cam = this.camera;
+    const lens = { fov: cam.fov, near: cam.near };
+    this.setLens(this.baseFov, 0.3);
     const pts = this.boxPoints(-0.6, -0.6, cols + 0.6, rows + 0.6, maxH + 0.8);
     const fit = this.fitDistance(this.center, pts, 55 * DEG);
     const minPx = clamp(Math.min(this.W, this.H) * 0.16, 80, 150);
-    const maxD = this.maxDistFor(mowerLen, minPx);
+    const maxD = this.maxDistFor(mowerLen, minPx) * zoomOut;
     this.baseDist = Math.min(fit, maxD);
     this.follow = fit > maxD * 1.02;
     this.topDownDist = this.fitDistance(this.center, pts, 82 * DEG, 30);
+    this.setLens(lens.fov, lens.near);
+    this.place(this.target, this.dist, this.pitch);
+  }
+
+  setLens(fov, near) {
+    const cam = this.camera;
+    if (Math.abs(cam.fov - fov) < 1e-4 && Math.abs(cam.near - near) < 1e-5) return;
+    cam.fov = fov;
+    cam.near = near;
+    cam.updateProjectionMatrix();
+  }
+
+  // The driver's vertical field of view: about 75 degrees across, whatever the screen shape.
+  fpFov() {
+    const aspect = this.W / (this.H + this.hud);
+    const v = 2 * Math.atan(Math.tan(FP_FOV_H / 2) / aspect);
+    return clamp(v, 55 * DEG, 90 * DEG) / DEG;
   }
 
   snap(focus) {
@@ -99,7 +130,8 @@ export class CameraRig {
     this.shakeAmt = Math.max(this.shakeAmt, amt);
   }
 
-  update(dt, focus, snap = false) {
+  // eye: { pos, look } for the driver's seat, used when fp > 0.
+  update(dt, focus, snap = false, eye = null) {
     const k = snap ? 1 : 1 - Math.exp(-dt * 3);
     this.zoom = lerp(this.zoom, this.zoomTarget, snap ? 1 : 1 - Math.exp(-dt * 2.5));
     let want;
@@ -125,6 +157,24 @@ export class CameraRig {
     this.dist = lerp(this.dist, dist, k);
     this.pitch = lerp(this.pitch, pitch, k);
     this.place(this.target, this.dist, this.pitch);
+
+    // glide into (or out of) the driver's seat
+    const step = snap ? 1 : dt / FP_TIME;
+    this.fp = this.fp < this.fpTarget ? Math.min(this.fpTarget, this.fp + step) : Math.max(this.fpTarget, this.fp - step);
+    const e = eye ? this.fp * this.fp * (3 - 2 * this.fp) : 0;
+    if (e > 0.0001) {
+      const cam = this.camera;
+      _topPos.copy(cam.position);
+      _topQ.copy(cam.quaternion);
+      cam.position.copy(eye.pos);
+      cam.lookAt(eye.look);
+      _fpQ.copy(cam.quaternion);
+      cam.position.lerpVectors(_topPos, eye.pos, e);
+      cam.quaternion.slerpQuaternions(_topQ, _fpQ, e);
+    }
+    this.setLens(lerp(this.baseFov, this.fpFov(), e), lerp(0.3, 0.08, e));
+    this.camera.updateMatrixWorld();
+
     if (this.shakeAmt > 0.001) {
       const s = this.shakeAmt;
       this.camera.position.x += (Math.random() - 0.5) * s;
@@ -163,6 +213,8 @@ export class CameraRig {
 
   toScreen(x, y, z) {
     _v.set(x, y, z).project(this.camera);
+    // behind the camera (under the driver's seat): come up from the bottom middle
+    if (_v.z > 1) return { x: this.W / 2, y: this.H * 0.85 };
     return { x: ((_v.x + 1) / 2) * this.W, y: ((1 - _v.y) / 2) * this.H };
   }
 

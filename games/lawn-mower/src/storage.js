@@ -8,6 +8,7 @@ const DEFAULTS = {
   stickers: {}, // sticker id -> times found
   muted: false,
   music: true,
+  view: 'top', // 'top' = looking down on the lawn, 'driver' = from the driver's seat
 };
 
 export function loadSave() {

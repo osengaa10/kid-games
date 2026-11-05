@@ -16,6 +16,8 @@
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
+  /* Holding a picture shouldn't lift it up to drag it somewhere (iPad drag and drop). */
+  -webkit-user-drag: none;
 }
 
 html,

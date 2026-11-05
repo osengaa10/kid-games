@@ -162,6 +162,9 @@ export function drawMower(ctx, skin, x, y, size, heading, t, opts = {}) {
   if (skin.crown) drawEmoji(ctx, '👑', sx, sy - size * 0.45 - b, size * 0.26);
 }
 
+// How fast the mower turns from the driver's seat at full lock, in radians a second.
+const TURN_RATE = 2.2;
+
 // Mower movement in grid cells. The body is drawn by world3d/mower3d.js.
 export class Mower {
   constructor(skin, x, y, size) {
@@ -191,7 +194,6 @@ export class Mower {
 
   // Glide toward the finger. Returns true if it bumped an obstacle this frame.
   update(dt, target, bounds, obstacles) {
-    this.scale += (this.scaleTarget - this.scale) * (1 - Math.exp(-dt * 6));
     const maxSpd = this.size * 3.4 * this.speedMul;
     let dvx = 0;
     let dvy = 0;
@@ -205,6 +207,22 @@ export class Mower {
         dvy = (dy / d) * spd;
       }
     }
+    return this.move(dt, dvx, dvy, bounds, obstacles, true);
+  }
+
+  // Drive from the driver's seat: gas (0..1) goes forward, turn (-1..1)
+  // steers, and plus turns toward the right of the screen. Sharp turns go a
+  // bit slower so it can turn around on the lawn. Returns true on a bump.
+  drive(dt, gas, turn, bounds, obstacles) {
+    if (!this.airborne) this.heading += turn * TURN_RATE * gas * dt;
+    const spd = this.size * 3.4 * this.speedMul * gas * (1 - 0.4 * Math.abs(turn));
+    return this.move(dt, Math.cos(this.heading) * spd, Math.sin(this.heading) * spd, bounds, obstacles, false);
+  }
+
+  // Ease toward the wanted velocity (dvx, dvy), then keep clear of obstacles
+  // and inside the lawn. faceVelocity turns the mower the way it's going.
+  move(dt, dvx, dvy, bounds, obstacles, faceVelocity) {
+    this.scale += (this.scaleTarget - this.scale) * (1 - Math.exp(-dt * 6));
     // no steering in mid-air, it just sails along
     const k = this.airborne ? 0 : 1 - Math.exp(-dt * 7);
     this.vx += (dvx - this.vx) * k;
@@ -214,7 +232,7 @@ export class Mower {
 
     const spd = Math.hypot(this.vx, this.vy);
     this.travel += spd * dt;
-    if (spd > this.size * 0.3 && !this.airborne) {
+    if (faceVelocity && spd > this.size * 0.3 && !this.airborne) {
       const h = Math.atan2(this.vy, this.vx);
       this.heading += angleDiff(this.heading, h) * Math.min(1, dt * 9);
     }

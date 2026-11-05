@@ -1,7 +1,7 @@
 // Offline support: serve from cache, refresh the cache in the background.
 // A new version of the game shows up on the next launch after an update.
 // Bump CACHE when files are added or removed (npm test checks FILES is complete).
-const CACHE = 'mighty-mower-v6';
+const CACHE = 'mighty-mower-v7';
 const FILES = [
   './',
   'index.html',
@@ -14,6 +14,7 @@ const FILES = [
   'src/input.js',
   'src/lawn.js',
   'src/levels.js',
+  'src/minimap.js',
   'src/mower.js',
   'src/music.js',
   'src/particles.js',

@@ -24,15 +24,22 @@ import { hillHeight } from '../terrain.js';
 import { Buddies } from '../buddies.js';
 import { POWER, PowerUps } from '../powerups.js';
 import { Events } from '../events.js';
+import { MiniMap } from '../minimap.js';
 import {
-  clamp, drawEmoji, drawStar, drawText, easeOutBack, easeOutCubic, lerp, pick, rand, roundRectPath, shuffle, weightedPick,
+  angleDiff, clamp, drawEmoji, drawStar, drawText, easeOutBack, easeOutCubic, lerp, pick, rand, roundRectPath, shuffle, weightedPick,
 } from '../util.js';
 
 const ALMOST = ['Almost done!', 'Just a little more!', 'You can do it!'];
 const TEASE = ["What's the picture?", 'I see a picture!', 'What could it be?'];
 const REVEAL_TIME = 3;
 const ADMIRE_TIME = 4;
+// giant lawns pull the camera back a bit further, so more of the lawn shows
+const GIANT_ZOOM_OUT = 1.3;
+// in the driver's seat, a new lawn is shown from up high for a moment first
+const SEAT_DELAY = 1.3;
 const _chute = new THREE.Vector3();
+const _eye = new THREE.Vector3();
+const _look = new THREE.Vector3();
 
 export class PlayScreen {
   constructor(game) {
@@ -47,6 +54,9 @@ export class PlayScreen {
     this.celebration = new Celebration(game, this);
     this.homeBtn = new Button({ icon: '🏠', color: '#ffb74d', onTap: () => { sfx.tap(); game.go('menu'); } });
     this.hornBtn = new Button({ icon: '📣', color: '#ef5350', onTap: () => this.honk() });
+    this.viewBtn = new Button({ icon: '👀', color: '#7e57c2', onTap: () => this.toggleView() });
+    this.fpTurn = 0; // steering from the driver's seat, -1 (left) .. 1 (right)
+    this.seatPractice = 0; // seconds driven from the seat, to know when to stop showing how
     this.dispProgress = 0;
     this.starBump = 0;
     this.bookBump = 0;
@@ -223,6 +233,11 @@ export class PlayScreen {
     this.pendingStars = 0;
     this.rig.release();
     this.rig.zoom = this.rig.zoomTarget = 1;
+    // start up high; the driver's seat (if chosen) comes after SEAT_DELAY
+    this.rig.fp = this.rig.fpTarget = 0;
+    this.mower3d.setDriverView(false);
+    this.fpTurn = 0;
+    this.minimap = new MiniMap(lawn);
     this.powerups = new PowerUps(this);
     this.buddies = new Buddies(this);
     this.events = new Events(this);
@@ -249,7 +264,7 @@ export class PlayScreen {
     const { g } = this;
     const lawn = this.lawn;
     this.rig.setView(g.W, g.H, this.hudTop());
-    this.rig.fitLawn(lawn.cols, lawn.rows, lawn.maxHeight, MOWER_CELLS);
+    this.rig.fitLawn(lawn.cols, lawn.rows, lawn.maxHeight, MOWER_CELLS, lawn.def.giant ? GIANT_ZOOM_OUT : 1);
     // far enough that the swoop up over a big lawn stays out of the fog
     const far = Math.max(this.rig.baseDist, this.rig.topDownDist) * 3;
     if (this.scene.fog) {
@@ -260,6 +275,9 @@ export class PlayScreen {
     const hy = s.t + 38;
     this.homeBtn.set(s.l + 42, hy, 28);
     this.hornBtn.set(g.W - s.r - 58, g.H - s.b - 58, 42);
+    this.viewBtn.set(g.W - s.r - 58, g.H - s.b - 154, 32);
+    this.mapR = clamp(Math.min(g.W, g.H) * 0.11, 48, 80);
+    this.mapPos = { x: g.W - s.r - 16 - this.mapR, y: this.hudTop() + 14 + this.mapR };
     this.starPos = { x: g.W - s.r - 62, y: hy };
     this.bookPos = { x: g.W - s.r - 140, y: hy };
     this.powerPos = { x: s.l + 54, y: g.H - s.b - 54 };
@@ -277,7 +295,25 @@ export class PlayScreen {
       this.celebration.down(x, y);
       return;
     }
-    if (hitButtons([this.homeBtn, this.hornBtn], x, y)) this.ignoreTouch = true;
+    if (hitButtons([this.homeBtn, this.hornBtn, this.viewBtn], x, y)) this.ignoreTouch = true;
+  }
+
+  // Up high, or in the driver's seat. The choice is kept for the next lawns.
+  toggleView() {
+    if (this.state !== 'mow') return;
+    const { g } = this;
+    sfx.tap();
+    g.save.view = g.save.view === 'driver' ? 'top' : 'driver';
+    if (g.save.view === 'driver') {
+      this.t = Math.max(this.t, SEAT_DELAY); // no waiting, go straight in
+      say(this.seatPractice < 1.5 ? 'Driver seat! Touch and hold to drive!' : 'Driver seat!', { force: true });
+    } else say('Up high!', { force: true });
+    g.persist();
+  }
+
+  // Driving from the seat: steering comes from how far left or right the finger is.
+  inSeat() {
+    return this.rig.fpTarget === 1 && this.rig.fp > 0.5;
   }
 
   up() {
@@ -311,15 +347,35 @@ export class PlayScreen {
     this.bookBump = Math.max(0, this.bookBump - dt * 3);
     this.dispProgress = lerp(this.dispProgress, lawn.progress, 1 - Math.exp(-dt * 6));
 
+    // the driver's seat is only for mowing; finishing up and the picture are seen from up high
+    this.rig.fpTarget = this.state === 'mow' && g.save.view === 'driver' && this.t > SEAT_DELAY ? 1 : 0;
+    this.viewBtn.visible = this.state === 'mow';
+    this.viewBtn.icon = g.save.view === 'driver' ? '🐦' : '👀';
+
     if (this.state === 'mow') {
       startEngine();
-      let target = null;
-      if (g.input.down && !this.ignoreTouch) target = this.rig.screenToGround(g.input.x, g.input.y, this.groundAt, lawn.maxHeight + 1);
-      if (target) this.idle = 0;
+      const touching = g.input.down && !this.ignoreTouch;
+      if (touching) this.idle = 0;
       else this.idle += dt;
       const px = mower.x;
       const py = mower.y;
-      if (mower.update(dt, target, lawn.bounds, lawn.obstacles)) {
+      let bumped;
+      if (this.inSeat()) {
+        // hold to go; the farther from the middle, the harder it turns
+        let want = 0;
+        if (touching) {
+          const raw = (g.input.x - g.W / 2) / (g.W * 0.32);
+          want = Math.sign(raw) * clamp((Math.abs(raw) - 0.1) / 0.9, 0, 1);
+          this.seatPractice += dt;
+        }
+        this.fpTurn += (want - this.fpTurn) * (1 - Math.exp(-dt * 10));
+        bumped = mower.drive(dt, touching ? 1 : 0, this.fpTurn, lawn.bounds, lawn.obstacles);
+      } else {
+        this.fpTurn = 0;
+        const target = touching ? this.rig.screenToGround(g.input.x, g.input.y, this.groundAt, lawn.maxHeight + 1) : null;
+        bumped = mower.update(dt, target, lawn.bounds, lawn.obstacles);
+      }
+      if (bumped) {
         sfx.boing();
         this.fx.burst(mower.x, mower.h + 0.6, mower.y, 8, ['#ffffff', '#fff59d'], 0.7);
       }
@@ -536,6 +592,7 @@ export class PlayScreen {
     for (const i of cells) {
       this.grass.cut(i);
       this.ground.setTall(i, false);
+      this.minimap.cut(i);
       if (lawn.surprises.has(i) && !this.revealQueue.includes(i)) this.revealQueue.push(i);
       // a soft chime, a little higher each time, when a whole row or column is done
       const r = (i / lawn.cols) | 0;
@@ -698,7 +755,9 @@ export class PlayScreen {
     }
 
     const showHint = this.hint >= 0;
-    this.hintRing.visible = this.hintFinger.visible = showHint;
+    this.hintRing.visible = showHint;
+    // from the driver's seat the finger would be right in his face; the HUD arrow points instead
+    this.hintFinger.visible = showHint && this.rig.fp < 0.5;
     if (showHint) {
       const c = lawn.cellCenter(this.hint);
       const h = lawn.height(c.x, c.y);
@@ -709,7 +768,10 @@ export class PlayScreen {
       this.hintFinger.position.set(c.x, h + 1.4 + Math.abs(Math.sin(t * 5)) * 0.6, c.y);
     }
 
-    this.rig.update(dt, this.focus());
+    const fp = this.rig.fp > 0 || this.rig.fpTarget > 0;
+    this.rig.update(dt, this.focus(), false, fp ? this.mower3d.eyePose(_eye, _look) : null);
+    const hide = this.rig.fp > 0.7;
+    if (hide !== this.mower3d.driverView) this.mower3d.setDriverView(hide);
   }
 
   updateActors(dt) {
@@ -811,8 +873,23 @@ export class PlayScreen {
   draw(ctx) {
     const { g, mower, t } = this;
 
+    const seat = this.rig.fp > 0.5 && this.state === 'mow';
+    // first time in the driver's seat: a finger holds down and slides side to side
+    if (seat && this.seatPractice < 1.5 && !g.input.down) {
+      const sx = g.W / 2 + Math.sin(t * 1.8) * g.W * 0.2;
+      const sy = g.H * 0.72;
+      ctx.globalAlpha = 0.9;
+      drawEmoji(ctx, '⬅️', g.W / 2 - g.W * 0.3, sy, 50);
+      drawEmoji(ctx, '➡️', g.W / 2 + g.W * 0.3, sy, 50);
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.beginPath();
+      ctx.arc(sx, sy - 30, 26 + Math.sin(t * 6) * 4, 0, Math.PI * 2);
+      ctx.fill();
+      drawEmoji(ctx, '👆', sx, sy, 64);
+      ctx.globalAlpha = 1;
+    }
     // first-ever lawn: show how to play
-    if (!this.hasMoved && this.state === 'mow' && g.save.lawns === 0) {
+    else if (!this.hasMoved && this.state === 'mow' && g.save.lawns === 0 && !seat) {
       const m = this.rig.toScreen(mower.x, mower.h, mower.y);
       const size = this.rig.pxPerCell(mower.x, mower.h, mower.y) * mower.size;
       const k = (t % 2) / 2;
@@ -850,6 +927,37 @@ export class PlayScreen {
     }
   }
 
+  // A big bouncing arrow under the HUD: up = straight ahead, sideways = turn that way.
+  drawHintArrow(ctx) {
+    const { g, mower, t } = this;
+    const c = this.lawn.cellCenter(this.hint);
+    const a = angleDiff(mower.heading, Math.atan2(c.y - mower.y, c.x - mower.x));
+    const x = g.W / 2;
+    const y = this.hudTop() + 70;
+    const s = 46;
+    const bob = Math.abs(Math.sin(t * 5)) * 10;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(a);
+    ctx.translate(0, -bob);
+    ctx.beginPath();
+    ctx.moveTo(0, -s);
+    ctx.lineTo(s * 0.85, 0);
+    ctx.lineTo(s * 0.35, 0);
+    ctx.lineTo(s * 0.35, s * 0.85);
+    ctx.lineTo(-s * 0.35, s * 0.85);
+    ctx.lineTo(-s * 0.35, 0);
+    ctx.lineTo(-s * 0.85, 0);
+    ctx.closePath();
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 8;
+    ctx.strokeStyle = '#ffffff';
+    ctx.stroke();
+    ctx.fillStyle = '#ffca28';
+    ctx.fill();
+    ctx.restore();
+  }
+
   drawStarCounter(ctx) {
     const sp = this.starPos;
     ctx.fillStyle = 'rgba(255,255,255,0.92)';
@@ -864,6 +972,12 @@ export class PlayScreen {
     const { t, bar } = this;
     this.homeBtn.draw(ctx, t);
     this.hornBtn.draw(ctx, t);
+    this.viewBtn.draw(ctx, t);
+
+    // in the driver's seat: a little map, and an arrow to the nearest grass when he stops
+    const fp = this.rig.fp;
+    if (fp > 0.01 && this.minimap) this.minimap.draw(ctx, this.mapPos.x, this.mapPos.y, this.mapR, this.mower, clamp(fp * 2 - 1, 0, 1));
+    if (fp > 0.5 && this.hint >= 0 && this.state === 'mow') this.drawHintArrow(ctx);
 
     // progress bar - no numbers, just a filling track with a flower at the end
     ctx.fillStyle = 'rgba(0,0,0,0.2)';

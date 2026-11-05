@@ -43,10 +43,20 @@ test('pictures and owners belong to the lawn\'s world, and change between lawns'
 test('lawn sizes stay in a sensible range', () => {
   for (let n = 0; n < 200; n++) {
     const d = levelDef(n);
-    assert.ok(d.long >= 15 && d.long <= 36, `lawn ${n} long side ${d.long}`);
-    assert.ok(d.short >= 10 && d.short <= d.long, `lawn ${n} short side ${d.short}`);
+    assert.ok(d.long >= 25 && d.long <= 46, `lawn ${n} long side ${d.long}`);
+    assert.ok(d.short >= 17 && d.short <= d.long, `lawn ${n} short side ${d.short}`);
     // keeps the grass instance count reasonable on an iPad
-    assert.ok(d.long * d.short <= 36 * 28);
+    assert.ok(d.long * d.short <= 46 * 37);
+  }
+});
+
+test('giant lawns are longer than any regular lawn of the same kind', () => {
+  const boxy = (d) => d.shape === 'rect' || d.shape === 'roundrect';
+  const defs = Array.from({ length: 200 }, (_, n) => levelDef(n));
+  for (const kind of [true, false]) {
+    const same = defs.filter((d) => boxy(d) === kind);
+    const biggestRegular = Math.max(...same.filter((d) => !d.giant).map((d) => d.long));
+    for (const d of same.filter((d) => d.giant)) assert.ok(d.long > biggestRegular, `giant lawn ${d.n} (${d.long}) vs regular ${biggestRegular}`);
   }
 });
 

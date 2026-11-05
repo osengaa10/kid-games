@@ -3,6 +3,7 @@
 A happy, frustration-free lawn mowing game for little kids, made for iPad and iPhone.
 
 - Touch anywhere and the mower drives to your finger. The lawn is a little 3D world seen from above, with real shadows, swaying grass and animated animal friends.
+- Tap 👀 to ride in the driver's seat. Hold a finger down to drive, and move it left or right of the middle to steer. A round map in the corner shows where the tall grass is, and if you stop for a moment a big arrow points to the nearest grass. Tap 🐦 to go back up high. The game remembers which view you picked.
 - The title screen is a little 3D front yard where your mower cuts stripes while the puppy follows along.
 - Mowing leaves real stripes: the grass leans the way you drove, so back-and-forth rows come out light and dark like a fresh lawn, and driving over cut grass again redraws them. A soft hum and grass swish, a gentle chime for every finished row, and calm music keep it relaxing.
 - Every lawn hides a giant picture (a dinosaur, a rocket, a kitty...). Mowing uncovers it. At the end the camera drifts quietly over the new stripes, then swoops up to show it off.
@@ -12,7 +13,7 @@ A happy, frustration-free lawn mowing game for little kids, made for iPad and iP
 - Partway through every other lawn there's a surprise: a balloon drops a present, sprinklers pop up, a cow comes to help, or stars and candy fall from the sky.
 - Later lawns have hills and wooden ramps to jump off.
 - Animals, flowers, and stars are hidden in the grass. The sticker book collects everything you find.
-- Finish a lawn to earn stars, which unlock new mowers. Every third lawn is a giant one.
+- Finish a lawn to earn stars, which unlock new mowers. Every lawn is big, and every third lawn is a giant one.
 - You can't lose. There are no timers, and the last few bits of grass mow themselves.
 
 ## Run it locally
@@ -63,6 +64,7 @@ In the browser console:
 - `__game.debug.event('balloon')`: also `'sprinklers'`, `'cow'`, `'stars'` or `'candy'`
 - `__game.debug.finish()`: finish the lawn (picture reveal, then the stars)
 - `__game.debug.street()`: show the street
+- `__game.debug.view('driver')`: ride in the driver's seat (`'top'` goes back up)
 
 ## Files
 
@@ -70,7 +72,8 @@ In the browser console:
 - `src/main.js`: boot, resize handling, game loop, screen switching, console test shortcuts
 - `src/lawn.js`: lawn shapes, grass grid, cutting, obstacles, ramps, hidden surprises, power-up spots (all in grid cells)
 - `src/terrain.js`: hills, ramps and other seeded numbers (no browser needed, so it's tested in Node)
-- `src/mower.js`: mower movement (follows the finger, jumps off ramps), plus the flat drawing used in menus
+- `src/mower.js`: mower movement (follows the finger, or steers from the driver's seat, jumps off ramps), plus the flat drawing used in menus
+- `src/minimap.js`: the round map shown in the driver's seat
 - `src/levels.js`: the endless lawn sequence (size, shape, world, picture, owner, power-ups, surprise)
 - `src/pictures.js`: the giant pictures hidden in each lawn
 - `src/buddies.js`, `src/powerups.js`, `src/events.js`: animal friends and the horn, power-ups, mid-lawn surprises
@@ -82,7 +85,7 @@ In the browser console:
   - `houses.js`: a house for every world (cottage, barn, log cabin, gingerbread, moon dome)
   - `scenery.js`: the yard (fences, trees, bushes, flower beds) and the obstacle models
   - `animals.js`, `models.js`: animated animal models, with an emoji cutout for any animal without one
-  - `ground.js`, `grass.js`, `props.js`, `ambient3d.js`, `effects3d.js`, `camera.js`, `sprites.js`: the ground and its painted picture, tall grass, trees/rocks/ramps/power-ups, drifting butterflies and fireflies, particles, the play camera, emoji cutouts and shadows
+  - `ground.js`, `grass.js`, `props.js`, `ambient3d.js`, `effects3d.js`, `camera.js`, `sprites.js`: the ground and its painted picture, tall grass, trees/rocks/ramps/power-ups, drifting butterflies and fireflies, particles, the play camera (up high or in the driver's seat), emoji cutouts and shadows
 - `src/screens/`: title menu, play screen, street, celebration, garage, sticker book
 - `src/audio.js`, `src/music.js`, `src/speech.js`: sound effects, background music, and spoken words, all generated in code
 - `vendor/three.module.min.js`: three.js r169 (the same copy as monster-truck). `vendor/addons/` has the matching r169 add-ons (glTF loader, meshopt decoder, skeleton utils, rounded boxes, room lighting)

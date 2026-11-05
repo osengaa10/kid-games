@@ -21,9 +21,10 @@ const MAX_TILT = 0.6; // about 35°
 const REST_TILT = 0.08;
 
 export class Shelf {
-  constructor({ onHome, onEdit }) {
+  constructor({ onHome, onEdit, onDelete }) {
     this.onHome = onHome;
     this.onEdit = onEdit;
+    this.onDelete = onDelete;
     this.list = $('shelf-list');
     this.view = $('view');
     this.stage = new Stage($('view-stage'));
@@ -78,18 +79,29 @@ export class Shelf {
     const trash = $('view-trash');
     const cancel = () => {
       clearTimeout(this.holdTimer);
+      this.holdTimer = null;
       trash.classList.remove('holding');
     };
     trash.addEventListener('pointerdown', (e) => {
       e.preventDefault();
+      if (this.holdTimer) return;
       trash.classList.add('holding');
       sound.pop();
       this.holdTimer = setTimeout(() => {
+        this.holdTimer = null;
         trash.classList.remove('holding');
         this.remove();
       }, HOLD_MS);
     });
-    for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) trash.addEventListener(ev, cancel);
+    // On an iPad, a finger held still can start the system's own long press (lifting things to
+    // drag them, for one), which cancels the hold partway: stop that before it starts.
+    trash.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+    trash.addEventListener('pointerup', cancel);
+    trash.addEventListener('pointercancel', cancel);
+    // A finger that slides a little stays held; only a mouse leaving the button lets go.
+    trash.addEventListener('pointerleave', (e) => {
+      if (e.pointerType === 'mouse') cancel();
+    });
   }
 
   async show(openId = null) {
@@ -148,6 +160,7 @@ export class Shelf {
     const r = this.stage.boxRect;
     this.fx.poof(r.x + r.w / 2, r.y + r.h / 2, r.w * 0.4);
     await deleteCase(entry.id);
+    this.onDelete?.(entry.id);
     setTimeout(() => this.show(), 350);
   }
 

@@ -157,6 +157,11 @@ game.debug = {
   street() {
     game.go('street');
   },
+  // 'driver' = ride in the driver's seat, 'top' = look down on the lawn
+  view(mode = 'driver') {
+    const play = game.screens.play;
+    if ((game.save.view === 'driver') !== (mode === 'driver')) play.toggleView();
+  },
   // 0 = best, 1 = fewer pixels and smaller shadows, 2 = no real shadows
   quality(level) {
     setQuality(level);

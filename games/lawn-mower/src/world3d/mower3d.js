@@ -97,6 +97,11 @@ function mesh(geo, mat, x = 0, y = 0, z = 0) {
 
 const wrapAngle = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 
+// The driver's eyes, and a point on the lawn ahead they look at, in the
+// mower's own units (1 = mower length, facing +x).
+const EYE = new THREE.Vector3(-0.44, 1.02, 0);
+const LOOK = new THREE.Vector3(2.6, 0.15, 0);
+
 export class Mower3D {
   constructor(skin) {
     this.root = new THREE.Group();
@@ -167,12 +172,15 @@ export class Mower3D {
     col.rotation.z = 0.55;
     B.add(col);
     const sw = new THREE.Group();
-    sw.add(new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.014, 8, 24), seat));
+    // the wheel itself spins inside the tilted mount when the mower turns
+    const spin = (this.wheelSpin = new THREE.Group());
+    sw.add(spin);
+    spin.add(new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.014, 8, 24), seat));
     for (let i = 0; i < 3; i++) {
       const spoke = mesh(new THREE.BoxGeometry(0.075, 0.012, 0.01), chrome, 0, 0, 0);
       spoke.rotation.z = (i / 3) * Math.PI * 2 + Math.PI / 2;
       spoke.position.set(Math.cos(spoke.rotation.z) * 0.037, Math.sin(spoke.rotation.z) * 0.037, 0);
-      sw.add(spoke);
+      spin.add(spoke);
     }
     sw.position.set(-0.06, 0.7, 0);
     sw.rotation.order = 'ZYX';
@@ -267,6 +275,7 @@ export class Mower3D {
       this.crown.position.set(-0.2, 0.88, 0);
       B.add(this.crown);
     } else this.crown = null;
+    this.setDriverView(this.driverView);
 
     castAll(B);
     B.add(this.headlight, this.headlight.target);
@@ -275,6 +284,21 @@ export class Mower3D {
 
   setLights(on) {
     this.headlight.intensity = on ? 9 : 0;
+  }
+
+  // In the driver's seat the camera is where the driver's head would be, so hide them.
+  setDriverView(on) {
+    this.driverView = !!on;
+    if (this.driver) this.driver.visible = !on;
+    if (this.crown) this.crown.visible = !on;
+  }
+
+  // Where the driver's eyes are and a spot ahead they look at, in world space.
+  eyePose(eye, look) {
+    this.root.updateMatrixWorld();
+    this.body.localToWorld(eye.copy(EYE));
+    this.body.localToWorld(look.copy(LOOK));
+    return { pos: eye, look };
   }
 
   // Where grass clippings fly out, in world space.
@@ -310,6 +334,7 @@ export class Mower3D {
     }
     this.lastHeading = m.heading;
     for (const p of this.steerers) p.rotation.y = -this.steer;
+    this.wheelSpin.rotation.z = this.steer * 2.5;
 
     const sq = m.squash;
     const moving = m.speed01 > 0.05 && !m.airborne;

@@ -194,6 +194,14 @@ const shelf = new Shelf({
     show('editor');
     editor.open(current.design, { id: entry.id, step: 'spray' });
   },
+  // A case deleted from the shelf is gone for good: if it was also the one he was last working
+  // on, forget that too, or it would come back as "keep going" (and onto the shelf again).
+  onDelete: (id) => {
+    if (current?.id !== id) return;
+    clearTimeout(saveTimer);
+    current = null;
+    clearCurrent();
+  },
 });
 
 function openShelf(id = null) {
