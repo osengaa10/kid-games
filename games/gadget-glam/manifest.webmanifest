@@ -1,0 +1,14 @@
+{
+  "name": "Gadget Glam",
+  "short_name": "Gadget Glam",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#7b4dff",
+  "theme_color": "#7b4dff",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

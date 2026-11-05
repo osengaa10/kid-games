@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Gadget Glam" />
+    <meta name="theme-color" content="#7b4dff" />
+    <meta name="format-detection" content="telephone=no" />
+    <title>Gadget Glam</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+    <link rel="icon" href="icons/icon-192.png" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <!-- Home: pick something to decorate. -->
+    <section id="home" class="screen active">
+      <div class="confetti-bg" aria-hidden="true"></div>
+      <h1 class="logo" aria-label="Gadget Glam">
+        <span>G</span><span>a</span><span>d</span><span>g</span><span>e</span><span>t</span>&nbsp;<span>G</span><span>l</span><span>a</span><span>m</span>
+      </h1>
+      <nav class="cards">
+        <div class="card-grid">
+          <button id="resume" class="card resume" aria-label="Keep going" hidden>
+            <canvas></canvas>
+            <span class="badge"><svg viewBox="0 0 40 40"><path d="M10 30l2-8 16-16 6 6-16 16z" /><path d="M24 10l6 6" /></svg></span>
+          </button>
+          <button class="card" data-item="phone" aria-label="Phone"><canvas></canvas></button>
+          <button class="card" data-item="tablet" aria-label="Tablet"><canvas></canvas></button>
+          <button class="card" data-item="earbuds" aria-label="Earbud case"><canvas></canvas></button>
+          <button class="card" data-item="controller" aria-label="Game controller"><canvas></canvas></button>
+          <!-- His collection: a display cabinet with his newest cases on its shelves. -->
+          <button id="go-shelf" class="card collection" aria-label="My collection"><canvas class="cabinet"></canvas></button>
+        </div>
+      </nav>
+      <!-- Only shown inside the Kid Games app: back to the list of games. -->
+      <button id="all-games" class="btn" aria-label="All games">
+        <svg viewBox="0 0 40 40"><rect x="4" y="4" width="14" height="14" rx="3" fill="#ff5252" /><rect x="22" y="4" width="14" height="14" rx="3" fill="#ffd740" /><rect x="4" y="22" width="14" height="14" rx="3" fill="#40c4ff" /><rect x="22" y="22" width="14" height="14" rx="3" fill="#69f0ae" /></svg>
+      </button>
+    </section>
+
+    <!-- Decorating. -->
+    <section id="editor" class="screen">
+      <canvas id="stage"></canvas>
+      <div class="corner top-left">
+        <button id="ed-home" class="btn purple" aria-label="Home">
+          <svg viewBox="0 0 40 40"><path d="M6 20L20 7L34 20" /><path d="M10 17V33H30V17" /><path d="M17 33V24H23V33" /></svg>
+        </button>
+        <!-- Shows up while zoomed in: back to seeing the whole case. -->
+        <button id="zoom-out" class="btn green pop-btn" aria-label="Zoom back out">
+          <svg viewBox="0 0 40 40"><circle cx="17" cy="17" r="10" /><path d="M24.5 24.5L33 33" /><path d="M12 17H22" /></svg>
+        </button>
+      </div>
+      <nav id="steps" aria-label="Steps">
+        <button class="step" data-step="style" aria-label="Shape">
+          <svg viewBox="0 0 48 48"><path d="M13 14L11 3L19.5 9.5H28.5L37 3L35 14Z" fill="#ffb6d2" stroke="#7b4dff" stroke-width="2.5" stroke-linejoin="round" /><rect x="11" y="9" width="26" height="37" rx="7" fill="#fff" stroke="#7b4dff" stroke-width="2.5" /><rect x="14.5" y="12.5" width="10" height="10" rx="3" fill="#3f4352" /><circle cx="17.6" cy="15.6" r="1.7" fill="#8d96ff" /><circle cx="17.6" cy="19.6" r="1.7" fill="#8d96ff" /><circle cx="21.4" cy="17.6" r="1.7" fill="#8d96ff" /></svg>
+        </button>
+        <button class="step" data-step="spray" aria-label="Spray paint">
+          <svg viewBox="0 0 48 48"><circle cx="11" cy="12" r="7.5" fill="#ff9ab0" opacity=".5" /><circle cx="6" cy="18" r="5" fill="#ff6f8a" opacity=".4" /><circle cx="14.5" cy="18.5" r="4" fill="#ff3347" opacity=".4" /><g fill="#ff3347"><circle cx="4" cy="8" r="1.4" /><circle cx="9" cy="3.5" r="1.2" /><circle cx="3" cy="24" r="1.2" /><circle cx="16.5" cy="9" r="1" /><circle cx="10" cy="24.5" r="1" /></g><rect x="26" y="3.5" width="9.5" height="7.5" rx="2" fill="#4d525e" /><circle cx="26.6" cy="7.2" r="1.4" fill="#15161b" /><path d="M19 19Q19 10.5 28 10H33.5Q42.5 10.5 42.5 19Z" fill="#dfe3ea" /><rect x="18.5" y="18" width="24.5" height="28" rx="3.5" fill="#ff3347" /><rect x="18.5" y="25" width="24.5" height="11" fill="#fff" opacity=".92" /><path d="M26.5 28c2-1.5 4 .5 6-.5s3.5 1.5 2 3 1 3-1.5 3.5-3 1.5-5 .5-3.5 0-2.5-2-1.5-3 1-4.5z" fill="#ff3347" /><rect x="21" y="19.5" width="3" height="25" rx="1.5" fill="#fff" opacity=".4" /></svg>
+        </button>
+        <button class="step" data-step="puffy" aria-label="Puffy paint">
+          <svg viewBox="0 0 48 48"><path d="M3 42Q8 34 13 40T22 40" fill="none" stroke="#6a24c9" stroke-width="6" stroke-linecap="round" /><path d="M3 41Q8 33 13 39T22 39" fill="none" stroke="#b07bff" stroke-width="4.2" stroke-linecap="round" /><path d="M4 39.6Q8 33.4 12.4 38" fill="none" stroke="#fff" stroke-width="1.3" stroke-linecap="round" opacity=".9" /><g transform="translate(33 19) rotate(-145)"><path d="M-1.4 -21L-3.6 -9.5H3.6L1.4 -21Z" fill="#e8e9f0" /><rect x="-6.5" y="-10.5" width="13" height="4.5" rx="1.5" fill="#f4f4f8" stroke="#cfd1da" stroke-width=".8" /><path d="M-9.5 -1Q-9.5 -6.5 -5 -6.5H5Q9.5 -6.5 9.5 -1Q8 8 9.5 16Q9.5 21.5 4 21.5H-4Q-9.5 21.5 -9.5 16Q-8 8 -9.5 -1Z" fill="#9a45ff" /><rect x="-6.5" y="2.5" width="13" height="10" rx="2" fill="#fff" opacity=".92" /><path d="M-4.5 9Q-2 4 0 7.5T4.5 6" fill="none" stroke="#9a45ff" stroke-width="2.2" stroke-linecap="round" /><rect x="6" y="-4" width="2.2" height="20" rx="1.1" fill="#fff" opacity=".4" /></g><circle cx="21.3" cy="36.6" r="3" fill="#b07bff" /><circle cx="20.4" cy="35.7" r="1" fill="#fff" /></svg>
+        </button>
+        <button class="step" data-step="marker" aria-label="Markers">
+          <svg viewBox="0 0 48 48"><path d="M3 40Q9 31 15 37T27 37" fill="none" stroke="#2f5bff" stroke-width="3.8" stroke-linecap="round" /><g transform="translate(28 37) rotate(-143)"><path d="M0 0L-4 7H4Z" fill="#2f5bff" /><rect x="-5" y="6" width="10" height="4" rx="1" fill="#cfd1da" /><rect x="-6" y="9" width="12" height="27" rx="3" fill="#f4f4f8" stroke="#cfd1da" stroke-width=".8" /><rect x="-6" y="9" width="12" height="8" rx="3" fill="#2f5bff" /><rect x="-6" y="30" width="12" height="3" fill="#2f5bff" /></g></svg>
+        </button>
+        <button class="step" data-step="sticker" aria-label="Stickers">
+          <svg viewBox="0 0 48 48"><circle cx="23" cy="23" r="19.5" fill="#fff" stroke="#e1e1ea" stroke-width="1" /><circle cx="23" cy="23" r="16.5" fill="#ffd60a" /><circle cx="17.3" cy="19" r="2.3" fill="#3a2a10" /><circle cx="28.7" cy="19" r="2.3" fill="#3a2a10" /><path d="M15.5 26Q23 34 30.5 26" fill="none" stroke="#3a2a10" stroke-width="2.6" stroke-linecap="round" /><path d="M31 41Q40 41 44 31L39 30Q36 37 31 41Z" fill="rgba(60,40,90,.25)" /><path d="M31 40Q34 32 42 29Q41 36 31 40Z" fill="#f0f0f6" stroke="#d7d7e2" stroke-width=".8" /></svg>
+        </button>
+        <button class="step" data-step="gem" aria-label="Gems">
+          <svg viewBox="0 0 48 48"><path d="M12 11H34L43 22L23 45L3 22Z" fill="#29c4ff" /><path d="M3 22H43M16 11L12 22L23 45L34 22L30 11M12 22L23 11L34 22" fill="none" stroke="#c9f1ff" stroke-width="1.8" stroke-linejoin="round" /><path d="M14 13L5 22H12Z" fill="#fff" opacity=".45" /><path d="M41 2l1.5 4 4 1.5-4 1.5L41 13l-1.5-4-4-1.5 4-1.5z" fill="#ffd60a" /><path d="M7 2l1 2.6 2.6 1-2.6 1L7 9.2 6 6.6 3.4 5.6 6 4.6z" fill="#ff5cb6" /></svg>
+        </button>
+        <button class="step tada-step" data-step="tada" aria-label="Done">
+          <svg viewBox="0 0 48 48"><path d="M24 6L29 17.5L41.5 19L32 27.5L35 40L24 33.5L13 40L16 27.5L6.5 19L19 17.5Z" fill="#ffd60a" stroke="#ff8a1c" stroke-width="2.5" stroke-linejoin="round" /><rect x="2" y="5" width="6" height="3" rx="1" fill="#ff3d8b" transform="rotate(-30 5 6.5)" /><rect x="39" y="4" width="6" height="3" rx="1" fill="#29c4ff" transform="rotate(25 42 5.5)" /><rect x="39" y="41" width="6" height="3" rx="1" fill="#2fc75a" transform="rotate(-20 42 42.5)" /><circle cx="5" cy="41" r="2" fill="#9a45ff" /><circle cx="24" cy="2.5" r="1.8" fill="#ff8a1c" /></svg>
+        </button>
+      </nav>
+      <div class="corner top-right">
+        <button id="undo" class="btn blue" aria-label="Undo">
+          <svg viewBox="0 0 40 40"><path d="M14 9L6 17L14 25" /><path d="M7 17H24A9 9 0 0 1 24 35H16" /></svg>
+        </button>
+        <button id="clear" class="btn orange" aria-label="Start this step over">
+          <svg viewBox="0 0 40 40"><path d="M7 11H33" /><path d="M16 11V6H24V11" /><path d="M10 11L12 34H28L30 11" /><path d="M17 17V28M23 17V28" /></svg>
+        </button>
+      </div>
+      <div id="tray"></div>
+      <canvas id="ghost" aria-hidden="true"></canvas>
+      <div id="tada">
+        <div id="tada-word" class="word"></div>
+        <div class="tada-buttons">
+          <button id="tada-shelf" class="btn big shelf-btn" aria-label="My collection"><canvas class="cabinet"></canvas></button>
+          <button id="tada-more" class="btn big blue" aria-label="Keep decorating">
+            <svg viewBox="0 0 40 40"><path d="M9 31l2-8 15-15 6 6-15 15z" /><path d="M22 12l6 6" /></svg>
+          </button>
+          <button id="tada-new" class="btn big green" aria-label="Make another">
+            <svg viewBox="0 0 40 40"><path d="M20 8V32M8 20H32" /></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- The shelf of finished cases. -->
+    <section id="shelf" class="screen">
+      <div id="shelf-list" class="scroll"></div>
+      <div class="shelf-empty" aria-hidden="true">
+        <svg viewBox="0 0 120 200"><rect x="10" y="10" width="100" height="180" rx="22" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="5" stroke-dasharray="12 10" /><path d="M60 70V130M30 100H90" stroke="rgba(255,255,255,.8)" stroke-width="8" stroke-linecap="round" /></svg>
+      </div>
+      <div class="corner top-left">
+        <button id="shelf-home" class="btn purple" aria-label="Home">
+          <svg viewBox="0 0 40 40"><path d="M6 20L20 7L34 20" /><path d="M10 17V33H30V17" /><path d="M17 33V24H23V33" /></svg>
+        </button>
+      </div>
+      <section id="view">
+        <canvas id="view-stage"></canvas>
+        <div class="corner top-left">
+          <button id="view-back" class="btn purple" aria-label="Back">
+            <svg viewBox="0 0 40 40"><path d="M24 8L12 20L24 32" /></svg>
+          </button>
+          <button id="view-reset" class="btn green pop-btn" aria-label="Turn it back to the front">
+            <svg viewBox="0 0 40 40"><path d="M31 20A11 11 0 1 1 26 10.8" /><path d="M27 4L27 11L20 11" /></svg>
+          </button>
+        </div>
+        <div class="corner bottom-right">
+          <button id="view-trash" class="btn orange hold" aria-label="Hold to throw away">
+            <svg viewBox="0 0 40 40"><path d="M7 11H33" /><path d="M16 11V6H24V11" /><path d="M10 11L12 34H28L30 11" /><path d="M17 17V28M23 17V28" /></svg>
+          </button>
+          <button id="view-edit" class="btn big blue" aria-label="Decorate some more">
+            <svg viewBox="0 0 40 40"><path d="M9 31l2-8 15-15 6 6-15 15z" /><path d="M22 12l6 6" /></svg>
+          </button>
+        </div>
+      </section>
+    </section>
+
+    <script type="module" src="js/main.js"></script>
+  </body>
+</html>
