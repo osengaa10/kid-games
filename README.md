@@ -2,11 +2,16 @@
 
 Mighty Mower, Coaster Doodle, Monster Truck and Gadget Glam in one iPad app. It has no ads, no sign-up, and needs no internet.
 
-The games are made with [Capacitor](https://capacitorjs.com). The code for each game lives in its own repo (`lawn-mower`, `roller-coaster`, `monster-truck`, `gadget-glam`), and those repos still work on GitHub Pages. The sync script looks for them next to this repo, then one folder further up. It looks in `GAMES_DIR` instead when that's set. This repo holds:
+The app is made with [Capacitor](https://capacitorjs.com). Everything is in this repo:
 
+- `games/`: one folder per game: `lawn-mower` (Mighty Mower), `roller-coaster` (Coaster Doodle), `monster-truck` and `gadget-glam`. Each is a complete web game on its own, with its own README, tests and `npm start`. **This is where you change a game.**
 - `launcher/`: the app's home screen, four big picture buttons.
-- `scripts/sync-games.mjs`: copies the launcher and the four games into `www/`, which Capacitor bundles into the app.
+- `scripts/sync-games.mjs`: copies the launcher and every game in `games/` into `www/`, leaving out tests and other files the app doesn't need. Capacitor bundles `www/` into the app.
 - `ios/`: the Xcode project.
+
+`www/` is made by the build and isn't saved in git, so don't edit anything in it: the next build replaces it.
+
+The first three games used to be separate repos (github.com/osengaa10/lawn-mower and so on). Their history came along when they moved here, so `git log -- games/lawn-mower` still shows every change.
 
 Inside the app, each game's title screen (Gadget Glam's home screen) shows an extra round button with four colored tiles. It goes back to the game list. The button only shows up in the app, not on the web.
 
@@ -14,10 +19,15 @@ Inside the app, each game's title screen (Gadget Glam's home screen) shows an ex
 
 | Command | What it does |
 | --- | --- |
-| `npm run sync` | Rebuild `www/` from the game repos and copy it into the Xcode project. Run this after changing any game. |
+| `npm run sync` | Rebuild `www/` from `games/` and the launcher, and copy it into the Xcode project. Run this after changing any game. |
 | `npm run open` | Open the project in Xcode. |
 | `npm run ios` | Sync, then build and run on a connected iPad or a simulator. |
 | `npm run serve` | Try the launcher and games in a desktop browser at http://localhost:8080. |
+| `npm test` | Run every game's tests. |
+
+To work on one game by itself, run `npm start` (and `npm test`) inside its folder, e.g. `cd games/gadget-glam && npm start`.
+
+**Adding a game:** put it in a new folder in `games/` (it needs an `index.html`), add a card for it in `launcher/index.html`, and run `npm run sync`.
 
 ## Putting the app on an iPad
 
@@ -143,4 +153,4 @@ swift scripts/crop-image.swift assets/cards/gadget-glam.png    0  0 1024 768 lau
 
 The numbers are `x y size` of the square to keep, in source pixels from the top-left corner.
 
-Gadget Glam's picture isn't drawn art like the others. The game draws it itself: open the game with `?card=1024` (for example http://localhost:8888/?card=1024 with `npm start` in `gadget-glam`) and save the canvas as `assets/cards/gadget-glam.png`. To match the other cards, replace that file with drawn art and run its crop line again.
+Gadget Glam's picture isn't drawn art like the others. The game draws it itself: open the game with `?card=1024` (for example http://localhost:8888/?card=1024 with `npm start` in `games/gadget-glam`) and save the canvas as `assets/cards/gadget-glam.png`. To match the other cards, replace that file with drawn art and run its crop line again.

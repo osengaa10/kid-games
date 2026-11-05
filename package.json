@@ -5,6 +5,7 @@
   "description": "Kid Games: Mighty Mower, Coaster Doodle, Monster Truck and Gadget Glam in one iPad app. No ads, no sign-up, no internet.",
   "type": "module",
   "scripts": {
+    "test": "for g in games/*/; do echo \"== $g\"; (cd \"$g\" && npm test --silent) || exit 1; done",
     "build": "node scripts/sync-games.mjs",
     "sync": "npm run build && npx cap sync ios",
     "open": "npx cap open ios",
