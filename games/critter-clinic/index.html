@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Critter Clinic" />
+    <meta name="theme-color" content="#2bb3a3" />
+    <meta name="format-detection" content="telephone=no" />
+    <title>Critter Clinic</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+    <link rel="icon" href="icons/icon-192.png" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <!-- The waiting room and the exam room are drawn on this canvas; the buttons sit on top. -->
+    <canvas id="stage"></canvas>
+
+    <!-- Waiting room: tap a patient. -->
+    <section id="waiting" class="screen active">
+      <h1 class="logo" aria-label="Critter Clinic">
+        <span>C</span><span>r</span><span>i</span><span>t</span><span>t</span><span>e</span><span>r</span>&nbsp;<span>C</span><span>l</span><span>i</span><span>n</span><span>i</span><span>c</span>
+      </h1>
+      <button id="go-book" class="btn big book-btn" aria-label="My sticker book" data-icon="book"></button>
+      <!-- Only shown inside the Kid Games app: back to the list of games. -->
+      <button id="all-games" class="btn" aria-label="All games" data-icon="all"></button>
+    </section>
+
+    <!-- Exam room: the check-up. -->
+    <section id="exam" class="screen">
+      <button id="ex-home" class="btn purple" aria-label="Back to the waiting room" data-icon="home"></button>
+      <div id="clip" aria-label="Check-up list"></div>
+      <div id="tray" aria-label="Doctor tools"></div>
+      <div id="picker" aria-label="Pick one"></div>
+    </section>
+
+    <!-- The sticker book. -->
+    <section id="book" class="screen">
+      <div id="book-list" class="scroll"></div>
+      <div class="book-empty" aria-hidden="true">
+        <svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="48" fill="none" stroke="rgba(255,255,255,.8)" stroke-width="6" stroke-dasharray="14 11" /><path d="M60 34l7 15 16 2-12 11 3 16-14-8-14 8 3-16-12-11 16-2z" fill="rgba(255,255,255,.8)" /></svg>
+      </div>
+      <button id="book-home" class="btn purple" aria-label="Back to the waiting room" data-icon="home"></button>
+    </section>
+
+    <script type="module" src="js/main.js"></script>
+  </body>
+</html>

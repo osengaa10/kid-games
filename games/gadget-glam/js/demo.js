@@ -32,7 +32,7 @@ export function demoDesign(item) {
     L.sticker.push(sticker('🦄', 250, 600, 2, -0.12), sticker('⭐', 360, 330, 1, 0.2));
     L.gem.push(gems('pinkheart', 5, [[90, 900], [160, 915], [240, 920], [320, 915], [390, 900]]));
   } else if (item === 'tablet') {
-    d.style = 'bear';
+    d.style = 'robot';
     L.spray.push(sweep(item, d.style, 'sky', 4, 0, 0.55, 6), sweep(item, d.style, 'purple', 5, 0.45, 1, 6));
     L.puffy.push({ k: 'pattern', pat: 'dots', c: 'white' });
     L.sticker.push(sticker('🚀', 640, 380, 2, 0.3), sticker('🪐', 330, 300, 2, -0.1), sticker('👽', 470, 560, 1, 0.1));

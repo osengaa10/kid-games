@@ -13,12 +13,13 @@
 // ("checkpoint") that still matches, or from scratch.
 //
 // draw3d() shows the case turned around in 3D: see view3d.js.
-import { shapeOf, onCase, bounds } from './items.js';
+import { ITEMS, shapeOf, onCase, bounds } from './items.js';
 import { orderedOps } from './design.js';
 import { popitDomes } from './patterns.js';
 import { rng } from './rng.js';
-import { partPath, unionPath } from './shapes.js';
+import { partPath } from './shapes.js';
 import { drawFixed, drawBuds, drawBehind, drawEdge, drawDeviceFront } from './devices.js';
+import { drawPlastic, drawTrim, drawTrimLive } from './trims.js';
 import { faceMatrix, facing } from './view3d.js';
 import {
   makeCanvas, sprayFrame, paintMarker, paintStamps, paintPuffy, paintPattern, dome, popitColor,
@@ -115,43 +116,10 @@ export class CaseArt {
     d.globalCompositeOperation = 'source-over';
   }
 
-  get plastic() {
-    const { style } = this.shape;
-    return style === 'cactus' ? '#57c86a' : style === 'dino' ? '#8fdc6c' : '#f8f7fc';
-  }
-
+  // The plastic and its colored bits (inside the ears, a gold horn...): see trims.js.
   paintBase() {
-    const { style, extra, u } = this.shape;
     this.clear('base');
-    const g = this.g('base');
-    g.fillStyle = this.plastic;
-    for (const p of this.shape.parts) g.fill(partPath(p));
-    if (style === 'dino') {
-      g.fillStyle = '#5fbf4a';
-      for (const p of extra) g.fill(partPath(p));
-    }
-    // Inner ears.
-    g.fillStyle = style === 'bear' ? '#ffc9a6' : '#ffb6d2';
-    for (const p of extra) {
-      if (style === 'cat' && p.poly) {
-        const n = p.poly.length;
-        const cx = p.poly.reduce((a, q) => a + q[0], 0) / n;
-        const cy = p.poly.reduce((a, q) => a + q[1], 0) / n;
-        g.beginPath();
-        p.poly.forEach(([x, y], i) => g[i ? 'lineTo' : 'moveTo'](cx + (x - cx) * 0.55, cy - 12 * u + (y - cy) * 0.55));
-        g.fill();
-      } else if (style === 'bunny' && p.el) {
-        const [cx, cy, rx, ry, rot] = p.el;
-        g.beginPath();
-        g.ellipse(cx, cy - ry * 0.08, rx * 0.5, ry * 0.72, rot, 0, Math.PI * 2);
-        g.fill();
-      } else if (style === 'bear' && p.el) {
-        const [cx, cy, rx] = p.el;
-        g.beginPath();
-        g.arc(cx, cy - rx * 0.12, rx * 0.55, 0, Math.PI * 2);
-        g.fill();
-      }
-    }
+    drawPlastic(this.g('base'), this.shape);
   }
 
   // The shiny plastic look: a soft bevel round the edge and gloss streaks, clipped to the case.
@@ -189,19 +157,20 @@ export class CaseArt {
     gl.addColorStop(1, 'rgba(255,255,255,0)');
     t.fillStyle = gl;
     t.fillRect(0, 0, this.W, this.H);
-    if (style === 'cactus') cactusRibs(this.g('gloss'), this.shape);
+    TEXTURES[style]?.(this.g('gloss'), this.shape);
     t.setTransform(1, 0, 0, 1, 0, 0);
     t.globalCompositeOperation = 'destination-in';
     t.drawImage(this.c.mask, 0, 0);
     t.globalCompositeOperation = 'source-over';
   }
 
-  // Cameras, buttons and cactus flowers on top; the controller's triggers behind.
+  // Cameras, buttons and the style's trims (cactus flowers, jewels...) on top; the controller's
+  // triggers behind.
   paintFixed() {
     this.clear('fixed');
     const f = this.g('fixed');
     drawFixed(f, this.shape);
-    for (const [x, y, s] of this.shape.flowers) flower(f, x, y, s);
+    for (const t of this.shape.trims) drawTrim(f, t);
     this.clear('behind');
     drawBehind(this.g('behind'), this.shape);
   }
@@ -485,9 +454,11 @@ export class CaseArt {
     return null;
   }
 
-  // The live bits over the face: earbuds, gem glints and glitter twinkles.
+  // The live bits over the face: earbuds, the robot's blinking light, gem glints and glitter
+  // twinkles.
   drawSparkle(ctx, now) {
     drawBuds(ctx, this.shape, -this.budsLift);
+    for (const t of this.shape.trims) drawTrimLive(ctx, t, now);
     for (const op of this.design.layers.gem) if (op.k === 'gems') drawGemGlints(ctx, op, this.u, now);
     drawTwinkles(ctx, this.twinkles, now);
     if (this.liveFlecks) drawTwinkles(ctx, this.liveFlecks.sparks, now);
@@ -521,8 +492,7 @@ export class CaseArt {
     const c = makeCanvas(this.W, this.H);
     const g = this.g(null, c);
     const { shape } = this;
-    g.fillStyle = this.plastic;
-    g.fill(unionPath(shape.parts));
+    drawPlastic(g, shape, { back: true });
     const [bx0, , bx1] = bounds(shape.body);
     g.save();
     g.translate(bx0 + bx1, 0);
@@ -691,6 +661,14 @@ export class CaseArt {
   }
 }
 
+// Textures in the plastic that still show through paint, drawn into the gloss.
+const TEXTURES = {
+  cactus: cactusRibs,
+  unicorn: hornSpiral,
+  shark: gills,
+  robot: rivets,
+};
+
 function cactusRibs(g, shape) {
   const { u, box } = shape;
   g.lineCap = 'round';
@@ -710,17 +688,72 @@ function cactusRibs(g, shape) {
   }
 }
 
-function flower(g, x, y, s) {
-  const petals = 8;
-  for (let i = 0; i < petals; i++) {
-    const a = (i / petals) * Math.PI * 2;
-    g.fillStyle = i % 2 ? '#ff4f6d' : '#ff6b84';
+// Grooves twisting up the unicorn's horn (only where it sticks out above the top edge).
+function hornSpiral(g, shape) {
+  const horn = shape.extra.find((p) => p.tag === 'horn');
+  if (!horn) return;
+  const { u } = shape;
+  const [x0, y0, x1, y1] = bounds([horn]);
+  const top = ITEMS[shape.item].ears.at[0][1];
+  const w = x1 - x0;
+  g.save();
+  g.clip(partPath(horn));
+  g.beginPath();
+  g.rect(x0 - w, y0 - w, w * 3, top - y0 + w);
+  g.clip();
+  g.lineCap = 'round';
+  const n = 7;
+  for (let k = 1; k < n; k++) {
+    const y = y0 + ((y1 - y0) * k) / n;
+    for (const [c, lw, dy] of [['rgba(150,90,0,0.32)', 5, 0], ['rgba(255,255,255,0.55)', 3, 5]]) {
+      g.strokeStyle = c;
+      g.lineWidth = lw * u;
+      g.beginPath();
+      g.moveTo(x0 - 4 * u, y + w * 0.22 + dy * u);
+      g.lineTo(x1 + 4 * u, y - w * 0.22 + dy * u);
+      g.stroke();
+    }
+  }
+  g.restore();
+}
+
+// Three gill slits on the shark's side, above its fin.
+function gills(g, shape) {
+  const { u } = shape;
+  const { xl, y, s } = ITEMS[shape.item].fins;
+  const R = s * 0.2;
+  g.lineCap = 'round';
+  for (let k = 0; k < 3; k++) {
+    const x = xl + s * (0.3 + 0.12 * k);
+    for (const [c, lw, dx] of [['rgba(20,50,90,0.3)', 6, 0], ['rgba(255,255,255,0.35)', 3, 4]]) {
+      g.strokeStyle = c;
+      g.lineWidth = lw * u;
+      g.beginPath();
+      g.arc(x + R + dx * u, y - s * 0.2, R, Math.PI - 0.75, Math.PI + 0.75);
+      g.stroke();
+    }
+  }
+}
+
+// A rivet in each corner of the robot (where there's no camera in the way).
+function rivets(g, shape) {
+  const { u } = shape;
+  const [ax, ay, aw, ah] = shape.area;
+  const m = 30 * u;
+  const r = 11 * u;
+  for (const [x, y] of [[ax + m, ay + m], [ax + aw - m, ay + m], [ax + m, ay + ah - m], [ax + aw - m, ay + ah - m]]) {
+    if (!onCase(shape, x, y) || !onCase(shape, x - r * 2, y - r * 2) || !onCase(shape, x + r * 2, y + r * 2)) continue;
+    g.fillStyle = 'rgba(20,30,50,0.25)';
     g.beginPath();
-    g.ellipse(x + Math.cos(a) * s * 0.26, y + Math.sin(a) * s * 0.26, s * 0.2, s * 0.12, a, 0, Math.PI * 2);
+    g.arc(x + 2 * u, y + 3 * u, r, 0, Math.PI * 2);
+    g.fill();
+    const gr = g.createRadialGradient(x - r * 0.35, y - r * 0.4, r * 0.05, x, y, r);
+    gr.addColorStop(0, 'rgba(255,255,255,0.95)');
+    gr.addColorStop(0.5, 'rgba(205,212,224,0.9)');
+    gr.addColorStop(1, 'rgba(120,130,150,0.9)');
+    g.fillStyle = gr;
+    g.beginPath();
+    g.arc(x, y, r, 0, Math.PI * 2);
     g.fill();
   }
-  g.fillStyle = '#ffd23f';
-  g.beginPath();
-  g.arc(x, y, s * 0.13, 0, Math.PI * 2);
-  g.fill();
 }

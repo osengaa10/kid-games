@@ -12,7 +12,7 @@ Decorating goes in steps. The icons along the top show them, and tapping one jum
 
 | Step | What he does |
 | --- | --- |
-| Shape | Pick a style: plain, kitty ears, bunny ears, teddy bear ears, dinosaur spikes or cactus arms with flowers. |
+| Shape | Pick a style: plain, kitty ears, bunny ears, teddy bear ears, a unicorn horn, butterfly wings, dinosaur spikes, shark fins, cactus arms with flowers, a robot with a blinking light, a rocket ship or a crown with jewels. The arrows show more. |
 | Spray | Pick a can (8 colors, rainbow, or glitter) and drag to spray. Paint builds up where he holds still, and spray that misses flies past the edge. When most of the case is covered, it cheers. |
 | Puffy paint | Drag to squeeze out raised, shiny lines. Or tap a pattern (waffle grid, hearts, polka dots, zig zag, pop-it) and the glue gun draws it by itself. |
 | Markers | Draw with markers (8 colors, rainbow, glitter pen), or pick a stamp (heart, star, paw) and tap or drag to stamp in the marker's color. |
@@ -47,7 +47,8 @@ Open http://localhost:8888. `?debug` exposes the screens as `window.__gg` for po
 
 ## How it works
 
-- `js/items.js`: the four items as plain shapes (rounded rectangles, ellipses, polygons) in their own units, the holes paint can't go in (cameras, controller buttons), and the six styles' ears, spikes and arms. There's no canvas in it, so the tests can check what's on the case and what isn't.
+- `js/items.js`: the four items as plain shapes (rounded rectangles, ellipses, polygons) in their own units, the holes paint can't go in (cameras, controller buttons), and the twelve styles' ears, horns, fins, wings and so on, with their colored bits and trims. There's no canvas in it, so the tests can check what's on the case and what isn't (and that no style makes every case smaller by reaching further out than the rest).
+- `js/trims.js`: draws a style's plastic and colored bits (inside the ears, a gold horn, red fins) and the trims that never get painted (cactus flowers, crown jewels, the robot's blinking light, the rocket's window).
 - `js/design.js`: a design is plain data, `{ item, style, layers: { spray, puffy, marker, sticker, gem } }`, each layer a list of strokes. Each step keeps its own undo history.
 - `js/paint.js`: draws each kind of stroke. Random things (spray droplets, glitter) come from a seeded random number generator (`js/rng.js`), so a stroke looks exactly the same whenever it's drawn again: undo, loading, the shelf.
 - `js/art.js`: one case's picture. Spray, puffy paint and markers each get a canvas (about 1300 px on the long side, whatever the screen), clipped to the case. Stickers and gems are drawn fresh every frame so they can move and sparkle. On top go a soft bevel, a gloss streak and the parts that never get painted.

@@ -1,0 +1,10 @@
+{
+  "name": "turbo-quest",
+  "private": true,
+  "type": "module",
+  "description": "Turbo Quest: a side-scrolling platformer for little kids and their grown-ups.",
+  "scripts": {
+    "test": "node --test",
+    "start": "python3 -m http.server 8890"
+  }
+}

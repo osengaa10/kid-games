@@ -7,7 +7,7 @@
 // One finger decorates. Two fingers that land together pinch to zoom and slide to pan; a second
 // finger that lands later (a palm resting on the screen) is ignored.
 import { STEPS, newHistory, addOp, replaceOp, removeOp, setStyle, clearStep, undo, canUndo, hasContent, nextSize } from './design.js';
-import { STYLES, STYLE_SAY, onCase } from './items.js';
+import { STYLE_PAGES, STYLE_SAY, onCase } from './items.js';
 import { PATTERNS, PATTERN_SAY, popitDomes } from './patterns.js';
 import { COLORS, SPRAY, PUFFY, MARKER, STAMPS, STAMP_SAY, STICKER_PAGES, STICKER_SAY, GEMS, GEM, GLITTER, hexRGB, rainbowRGB } from './palette.js';
 import { CaseArt } from './art.js';
@@ -49,6 +49,8 @@ const CHEERS = [
 const TAP_MS = 350;
 const TAP_PX = 12;
 const PINCH_MS = 250; // a second finger this soon after the first means a pinch, not a palm
+const ARROW_LEFT = '<svg viewBox="0 0 40 40"><path d="M25 8L12 20L25 32" /></svg>';
+const ARROW_RIGHT = '<svg viewBox="0 0 40 40"><path d="M15 8L28 20L15 32" /></svg>';
 
 export class Editor {
   constructor({ onHome, onShelf, onFinish, onChange }) {
@@ -61,7 +63,7 @@ export class Editor {
     this.fx = new Particles();
     this.tray = $('tray');
     this.ghost = $('ghost');
-    this.sel = { spray: 'red', puffy: 'white', marker: 'black', markerTool: 'pen', page: 0, gem: 'diamond' };
+    this.sel = { spray: 'red', puffy: 'white', marker: 'black', markerTool: 'pen', page: 0, stylePage: 0, gem: 'diamond' };
     this.finger = null; // the finger that's decorating
     this.pointers = new Map(); // every finger on the case
     this.pinching = false;
@@ -176,6 +178,7 @@ export class Editor {
   go(step) {
     this.cancelFinger();
     this.step = step;
+    if (step === 'style') this.showStylePage();
     this.el.dataset.step = step;
     this.activity = 0;
     this.idle = 0;
@@ -229,8 +232,17 @@ export class Editor {
       this.art.build();
       this.layout(true);
       this.stage.boing(this.now);
-      if (this.step === 'style') this.buildTray();
+      if (this.step === 'style') {
+        this.showStylePage();
+        this.buildTray();
+      }
     } else this.art.sync();
+  }
+
+  // The shapes tray opens on the page with the case's shape, so it's always there to see.
+  showStylePage() {
+    const i = STYLE_PAGES.findIndex((p) => p.includes(this.design.style));
+    this.sel.stylePage = Math.max(0, i);
   }
 
   // --------------------------------------------------------------------------------- the tray
@@ -252,7 +264,10 @@ export class Editor {
     const gap = () => t.append(Object.assign(document.createElement('span'), { className: 'gap' }));
     const step = this.step;
     if (step === 'style') {
-      for (const st of STYLES) add('style', st, icons.styleIcon(this.design.item, st), this.design.style === st);
+      const paged = STYLE_PAGES.length > 1;
+      if (paged) add('page', -1, ARROW_LEFT, false, 'arrow');
+      for (const st of STYLE_PAGES[this.sel.stylePage]) add('style', st, icons.styleIcon(this.design.item, st), this.design.style === st);
+      if (paged) add('page', 1, ARROW_RIGHT, false, 'arrow');
     } else if (step === 'spray') {
       for (const c of SPRAY) add('spray', c, icons.canIcon(c), this.sel.spray === c);
     } else if (step === 'puffy') {
@@ -264,9 +279,9 @@ export class Editor {
       gap();
       for (const s of STAMPS) add('stamp', s, icons.stampIcon(s, this.sel.marker), this.sel.markerTool === s, 'tile');
     } else if (step === 'sticker') {
-      add('page', -1, '<svg viewBox="0 0 40 40"><path d="M25 8L12 20L25 32" /></svg>', false, 'arrow');
+      add('page', -1, ARROW_LEFT, false, 'arrow');
       for (const [e] of STICKER_PAGES[this.sel.page]) add('sticker', e, icons.stickerIcon(e), false, 'sticker');
-      add('page', 1, '<svg viewBox="0 0 40 40"><path d="M15 8L28 20L15 32" /></svg>', false, 'arrow');
+      add('page', 1, ARROW_RIGHT, false, 'arrow');
     } else if (step === 'gem') {
       for (const [id] of GEMS) add('gem', id, icons.gemIcon(id), this.sel.gem === id);
       add('gem', 'shaker', icons.shakerIcon(), this.sel.gem === 'shaker');
@@ -328,8 +343,9 @@ export class Editor {
       sound.thunk();
       say(STAMP_SAY[v], { force: true });
     } else if (kind === 'page') {
-      const n = STICKER_PAGES.length;
-      this.sel.page = (this.sel.page + Number(v) + n) % n;
+      // Shapes and stickers both come a page at a time.
+      const [key, n] = this.step === 'style' ? ['stylePage', STYLE_PAGES.length] : ['page', STICKER_PAGES.length];
+      this.sel[key] = (this.sel[key] + Number(v) + n) % n;
       sound.pop();
       this.buildTray();
       return;

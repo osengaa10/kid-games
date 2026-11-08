@@ -1,11 +1,11 @@
 # Kid Games
 
-Mighty Mower, Coaster Doodle, Monster Truck and Gadget Glam in one iPad app. It has no ads, no sign-up, and needs no internet.
+Mighty Mower, Coaster Doodle, Monster Truck, Gadget Glam, Turbo Quest and Critter Clinic in one iPad app. It has no ads, no sign-up, and needs no internet.
 
 The app is made with [Capacitor](https://capacitorjs.com). Everything is in this repo:
 
-- `games/`: one folder per game: `lawn-mower` (Mighty Mower), `roller-coaster` (Coaster Doodle), `monster-truck` and `gadget-glam`. Each is a complete web game on its own, with its own README, tests and `npm start`. **This is where you change a game.**
-- `launcher/`: the app's home screen, four big picture buttons.
+- `games/`: one folder per game: `lawn-mower` (Mighty Mower), `roller-coaster` (Coaster Doodle), `monster-truck`, `gadget-glam`, `turbo-quest` (a platformer, in progress) and `critter-clinic` (a doctor's check-up). Each is a complete web game on its own, with its own README, tests and `npm start`. **This is where you change a game.**
+- `launcher/`: the app's home screen, six big picture buttons.
 - `scripts/sync-games.mjs`: copies the launcher and every game in `games/` into `www/`, leaving out tests and other files the app doesn't need. Capacitor bundles `www/` into the app.
 - `ios/`: the Xcode project.
 
@@ -13,7 +13,7 @@ The app is made with [Capacitor](https://capacitorjs.com). Everything is in this
 
 The first three games used to be separate repos (github.com/osengaa10/lawn-mower and so on). Their history came along when they moved here, so `git log -- games/lawn-mower` still shows every change.
 
-Inside the app, each game's title screen (Gadget Glam's home screen) shows an extra round button with four colored tiles. It goes back to the game list. The button only shows up in the app, not on the web.
+Inside the app, each game's title screen (Gadget Glam's home screen, Turbo Quest's pause menu, Critter Clinic's waiting room) shows an extra round button with four colored tiles. It goes back to the game list. The button only shows up in the app, not on the web.
 
 ## Everyday commands
 
@@ -28,6 +28,44 @@ Inside the app, each game's title screen (Gadget Glam's home screen) shows an ex
 To work on one game by itself, run `npm start` (and `npm test`) inside its folder, e.g. `cd games/gadget-glam && npm start`.
 
 **Adding a game:** put it in a new folder in `games/` (it needs an `index.html`), add a card for it in `launcher/index.html`, and run `npm run sync`.
+
+## Voices
+
+Critter Clinic's narrator and patients speak with recorded voices made with [ElevenLabs](https://elevenlabs.io), not the iPad's robotic built-in voice. (The other games still use the built-in one for now.) Each line is made once, saved as an mp3 in the game's `voice/` folder, and committed, so building the app needs no API key and no internet. The tools are in `scripts/voices/`:
+
+- `cast.json`: every voice in every game: who it is, a description of how it sounds, and its ElevenLabs voice id.
+- `audition.mjs`: makes three voices from a role's description, so you can pick one.
+- `generate.mjs`: makes a game's clips from its `scripts/voice-lines.mjs`.
+
+**Setting up (once):** make an API key at elevenlabs.io (Profile → API keys) and put it in a file called `.env` at the root of this repo:
+
+```sh
+ELEVENLABS_API_KEY=sk_...
+```
+
+Git ignores `.env`, so the key never gets committed.
+
+**Picking the voices:**
+
+```sh
+npm run voices:audition                  # 3 new voices for each role that has none yet
+open .voices-audition/index.html         # listen
+npm run voices:audition -- pick puppy 2  # keep one: saved to your ElevenLabs account and to cast.json
+npm run voices:audition -- bunny         # 3 more tries for one role
+npm run voices:audition -- use puppy <voice id>   # or use a voice from the ElevenLabs Voice Library
+```
+
+A preview only says its role's sample line. To make the game's lines, ElevenLabs needs the voice saved in your account, and that's what `pick` does. Each saved voice takes a slot: 3 on the free plan, 10 on Starter. Voices from the Voice Library and ElevenLabs' default voices don't take a slot.
+
+**Making the clips** (after picking, and again after changing any line):
+
+```sh
+npm run voices -- critter-clinic --dry   # how many clips and characters it would use
+npm run voices -- critter-clinic         # make the clips that are new or changed
+npm run voices -- critter-clinic --redo "Ouch!" --voice puppy   # a new take of one line
+```
+
+Then commit the game's `voice/` folder and `npm run sync`. Changing a voice in `cast.json` remakes all of that voice's lines the next time. ElevenLabs counts characters: all of Critter Clinic is about 5,500.
 
 ## Putting the app on an iPad
 
@@ -60,7 +98,7 @@ In Terminal, in this repo:
 
 ```sh
 npm install      # first time after cloning only
-npm run sync     # copies the four games into the app
+npm run sync     # copies the games into the app
 npm run open     # opens the project in Xcode
 ```
 
@@ -142,15 +180,25 @@ To keep a little one in the app, turn on **Settings → Accessibility → Guided
 
 ## Game pictures on the home screen
 
-The home screen (`launcher/index.html`) follows the mockup in `assets/cards/launcher-mockup.jpg`. Each game has a card with a picture and its name. The original art is in `assets/cards/`. The pictures the app uses are 768 px JPEGs in `launcher/images/`, trimmed to avoid flaws at the edges of the art:
+The home screen (`launcher/index.html`) follows the mockup in `assets/cards/launcher-mockup.jpg`. Each game has a card with a picture and its name. Each picture is an action screenshot from the game itself, so he sees exactly what he's about to play:
+
+| Card | The moment |
+| --- | --- |
+| Mighty Mower | The mower cutting through tall grass on the first lawn, clippings flying, the puppy running alongside and the dinosaur picture showing through |
+| Coaster Doodle | A rainbow coaster, seen from outside, heading into a loop over the splash pond, with corkscrews behind |
+| Monster Truck | The truck leaping over a row of cars in the crush zone, the crowd behind |
+| Gadget Glam | The glue gun squeezing puffy hearts onto a rainbow kitty phone case with a unicorn sticker |
+| Turbo Quest | Turbo leaping over the first gap of Banana Bounce, a trail of stars ahead and sparkles from the ones he just grabbed |
+| Critter Clinic | The stethoscope on Biscuit the puppy's chest, the heart beating on the monitor and little hearts floating up |
+
+They were taken in a desktop browser at iPad size (1180×820 points, 2× pixels; 3× for Turbo Quest, whose pup is small on screen, and for Critter Clinic, cropped close), with the game's buttons hidden or cropped out. A few used a closer camera than the game normally has: Mighty Mower zoomed in on the mower, and Monster Truck watching from in front and to the side. The square crops, 1024 px, are in `assets/cards/`. The app uses 768 px JPEGs of them in `launcher/images/`:
 
 ```sh
-swift scripts/crop-image.swift assets/cards/lawn-mower.png     0  0 1024 768 launcher/images/lawn-mower.jpg
-swift scripts/crop-image.swift assets/cards/roller-coaster.png 85 80 830 768 launcher/images/roller-coaster.jpg  # white corner top-left, black notch right
-swift scripts/crop-image.swift assets/cards/monster-truck.png  30  0 880 768 launcher/images/monster-truck.jpg   # white corner bottom-right
-swift scripts/crop-image.swift assets/cards/gadget-glam.png    0  0 1024 768 launcher/images/gadget-glam.jpg
+for g in lawn-mower roller-coaster monster-truck gadget-glam turbo-quest critter-clinic; do
+  swift scripts/crop-image.swift assets/cards/$g.png 0 0 1024 768 launcher/images/$g.jpg
+done
 ```
 
-The numbers are `x y size` of the square to keep, in source pixels from the top-left corner.
+`crop-image.swift` takes `x y size` of the square to keep, in source pixels from the top-left corner, so it can also cut the square straight out of a new full-screen screenshot.
 
-Gadget Glam's picture isn't drawn art like the others. The game draws it itself: open the game with `?card=1024` (for example http://localhost:8888/?card=1024 with `npm start` in `games/gadget-glam`) and save the canvas as `assets/cards/gadget-glam.png`. To match the other cards, replace that file with drawn art and run its crop line again.
+When a game changes a lot, take a new screenshot, crop it into `assets/cards/`, run the loop above, and then `npm run sync`.

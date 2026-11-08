@@ -5,6 +5,7 @@ import { COLORS, GLITTER } from './palette.js';
 import { shapeOf, bounds } from './items.js';
 import { partPath } from './shapes.js';
 import { drawFixed, drawBehind, drawBuds } from './devices.js';
+import { drawPlastic, drawTrim } from './trims.js';
 import { makeCanvas, stickerSprite, gemSprite } from './paint.js';
 import { drawShaker } from './tools.js';
 
@@ -117,8 +118,8 @@ function iconCanvas(px = 96) {
   return { c, g: c.getContext('2d'), S: px * dpr };
 }
 
-// A little picture of the item in a style: white (or green) with a purple outline, and its
-// cameras and buttons.
+// A little picture of the item in a style: its plastic with a purple outline, and its cameras
+// and buttons.
 export function styleIcon(item, style) {
   const { c, g, S } = iconCanvas(96);
   const sh = shapeOf(item, style);
@@ -138,18 +139,9 @@ export function styleIcon(item, style) {
     for (const p of parts) g.fill(p);
     g.restore();
   }
-  g.fillStyle = style === 'cactus' ? '#57c86a' : style === 'dino' ? '#8fdc6c' : '#ffffff';
-  for (const p of parts) g.fill(p);
-  // Pink inside the ears, like on the case.
-  if (style === 'cat' || style === 'bunny' || style === 'bear') {
-    g.fillStyle = style === 'bear' ? '#ffc9a6' : '#ffb6d2';
-    for (const p of sh.extra) {
-      const [a0, b0, a1, b1] = bounds([p]);
-      g.beginPath();
-      g.ellipse((a0 + a1) / 2, (b0 + b1) / 2 - (b1 - b0) * 0.05, (a1 - a0) * 0.22, (b1 - b0) * 0.28, 0, 0, Math.PI * 2);
-      g.fill();
-    }
-  }
+  // The plastic with its colored bits and trims, just like on the case.
+  drawPlastic(g, sh);
+  for (const t of sh.trims) drawTrim(g, t);
   drawFixed(g, sh);
   drawBuds(g, sh);
   return c;

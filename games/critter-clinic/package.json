@@ -1,0 +1,10 @@
+{
+  "name": "critter-clinic",
+  "private": true,
+  "type": "module",
+  "description": "Critter Clinic: give cute animal patients their check-up. Made for little kids on an iPad.",
+  "scripts": {
+    "test": "node --test",
+    "start": "python3 -m http.server 8891"
+  }
+}

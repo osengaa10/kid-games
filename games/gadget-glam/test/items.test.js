@@ -1,8 +1,40 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ITEMS, ITEM_IDS, STYLES, shapeOf, inside, bounds, boxOf, onCase } from '../js/items.js';
+import { ITEMS, ITEM_IDS, STYLES, STYLE_PAGES, STYLE_SAY, STYLE_PLASTIC, shapeOf, inside, bounds, boxOf, onCase, polyArea } from '../js/items.js';
 
 const within = (b, box) => b[0] >= box.x && b[1] >= box.y && b[2] <= box.x + box.w && b[3] <= box.y + box.h;
+
+// Do two sets of parts overlap somewhere?
+const touch = (a, b) => {
+  const [x0, y0, x1, y1] = bounds(a);
+  for (let i = 0; i <= 24; i++) {
+    for (let j = 0; j <= 24; j++) {
+      const x = x0 + ((x1 - x0) * i) / 24;
+      const y = y0 + ((y1 - y0) * j) / 24;
+      if (inside(a, x, y) && inside(b, x, y)) return true;
+    }
+  }
+  return false;
+};
+
+// How big each item's box was with the first six styles. Every style has to fit in it, so a new
+// one that reached further out would make every case smaller on screen.
+const BOX = {
+  phone: { x: -121, y: -224, w: 722, h: 1220 },
+  tablet: { x: -159, y: -307, w: 1277, h: 1023 },
+  earbuds: { x: -114, y: -195, w: 787, h: 751 },
+  controller: { x: -37, y: -222, w: 1073, h: 752 },
+};
+
+test('every style is in the tray once, with a name and a plastic color', () => {
+  assert.equal(new Set(STYLES).size, STYLES.length);
+  assert.equal(STYLES[0], 'plain');
+  assert.ok(STYLE_PAGES.every((p) => p.length > 0 && p.length <= 7), 'a page of shapes fits in the tray');
+  for (const st of STYLES) {
+    assert.ok(STYLE_SAY[st], `${st} has no name`);
+    assert.match(STYLE_PLASTIC[st] || '', /^#[0-9a-f]{6}$/, `${st} has no plastic color`);
+  }
+});
 
 for (const id of ITEM_IDS) {
   test(`${id}: every style fits the item's box`, () => {
@@ -11,7 +43,20 @@ for (const id of ITEM_IDS) {
       const sh = shapeOf(id, st);
       assert.ok(sh.parts.length >= ITEMS[id].body.length);
       assert.ok(within(bounds(sh.parts), box), `${id} ${st} sticks out of its box`);
-      for (const [x, y] of sh.flowers) assert.ok(x > box.x && x < box.x + box.w && y > box.y && y < box.y + box.h);
+      for (const { x, y } of sh.trims) assert.ok(x > box.x && x < box.x + box.w && y > box.y && y < box.y + box.h, `${id} ${st}: a trim is off the box`);
+    }
+  });
+
+  test(`${id}: no style makes the box bigger`, () => {
+    const b = boxOf(id);
+    assert.ok(within([b.x, b.y, b.x + b.w, b.y + b.h], BOX[id]), `${id}'s box grew: ${JSON.stringify(b)}`);
+  });
+
+  test(`${id}: colored bits are on the case, and parts all go round the same way`, () => {
+    for (const st of STYLES) {
+      const sh = shapeOf(id, st);
+      for (const a of sh.accents) assert.ok(touch([a.part], sh.parts), `${id} ${st}: an accent is off the case`);
+      for (const p of sh.parts) if (p.poly) assert.ok(polyArea(p.poly) > 0, `${id} ${st}: a polygon goes round the wrong way`);
     }
   });
 
@@ -34,21 +79,10 @@ for (const id of ITEM_IDS) {
     }
   });
 
-  test(`${id}: ears, spikes and arms join onto the body`, () => {
-    // Do two sets of parts overlap somewhere?
-    const touch = (a, b) => {
-      const [x0, y0, x1, y1] = bounds(a);
-      for (let i = 0; i <= 24; i++) {
-        for (let j = 0; j <= 24; j++) {
-          const x = x0 + ((x1 - x0) * i) / 24;
-          const y = y0 + ((y1 - y0) * j) / 24;
-          if (inside(a, x, y) && inside(b, x, y)) return true;
-        }
-      }
-      return false;
-    };
-    for (const st of ['cat', 'bunny', 'bear', 'dino', 'cactus']) {
+  test(`${id}: ears, horns, fins, wings and the rest join onto the body`, () => {
+    for (const st of STYLES.filter((s) => s !== 'plain')) {
       const sh = shapeOf(id, st);
+      assert.ok(sh.extra.length > 0, `${id} ${st} adds nothing to the shape`);
       // Each added part reaches the body, directly or through other parts, so the case is one piece.
       const joined = [...sh.body];
       let left = [...sh.extra];

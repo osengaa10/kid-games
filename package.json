@@ -2,7 +2,7 @@
   "name": "kid-games",
   "private": true,
   "version": "1.0.0",
-  "description": "Kid Games: Mighty Mower, Coaster Doodle, Monster Truck and Gadget Glam in one iPad app. No ads, no sign-up, no internet.",
+  "description": "Kid Games: Mighty Mower, Coaster Doodle, Monster Truck, Gadget Glam, Turbo Quest and Critter Clinic in one iPad app. No ads, no sign-up, no internet.",
   "type": "module",
   "scripts": {
     "test": "for g in games/*/; do echo \"== $g\"; (cd \"$g\" && npm test --silent) || exit 1; done",
@@ -10,7 +10,9 @@
     "sync": "npm run build && npx cap sync ios",
     "open": "npx cap open ios",
     "ios": "npm run sync && npx cap run ios",
-    "serve": "npm run build && cd www && python3 -m http.server 8080"
+    "serve": "npm run build && cd www && python3 -m http.server 8080",
+    "voices": "node scripts/voices/generate.mjs",
+    "voices:audition": "node scripts/voices/audition.mjs"
   },
   "dependencies": {
     "@capacitor/core": "^8.6.0",

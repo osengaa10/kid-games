@@ -1,0 +1,72 @@
+{
+  "narrator": {
+    "who": "The narrator in every game: tells him what to do and cheers him on",
+    "description": "A warm, cheerful female children's television host with a gentle American accent. Bright, kind and encouraging, smiling as she speaks, clear and unhurried, like reading a picture book to a preschooler. Studio-quality audio.",
+    "sample": "Oh no, Biscuit has a cold! Let's help with a check-up! Stethoscope! Listen to the heart! A strong heart! Great job, Doctor! All done! Pick a sticker! A unicorn!",
+    "id": "v8KoHniTz1G8ZfCSikvP",
+    "model": "eleven_v3",
+    "settings": {
+      "stability": 0.5
+    }
+  },
+  "puppy": {
+    "who": "Biscuit, Critter Clinic's puppy",
+    "description": "An animated cartoon puppy character voice. Very high, bouncy and excitable, breathless with joy, giggly, playful and silly. American accent. Studio-quality audio.",
+    "sample": "Hi Doctor! I'm Biscuit! Woof! Hee hee! That tickles! I'm a little nervous… Ouch! That wasn't so bad! I feel much better! Thank you, Doctor! Woof woof!",
+    "id": "i6fmIJNbAsryCzrf8Tl5",
+    "model": "eleven_v3",
+    "settings": {
+      "stability": 0.5
+    }
+  },
+  "bunny": {
+    "who": "Clover, Critter Clinic's bunny",
+    "description": "An animated cartoon bunny character voice. Tiny, soft, very high and sweet, a little shy and gentle, speaks softly with small giggles. American accent. Studio-quality audio.",
+    "sample": "Hi Doctor! I'm Clover! Hop hop! Hee hee! That tickles! I'm a little nervous… Ouch! That wasn't so bad! I feel all better! Thank you, Doctor! Bye bye!",
+    "id": "opikgOBacRLz1OvJIl2c",
+    "model": "eleven_v3",
+    "settings": {
+      "stability": 0.5
+    }
+  },
+  "bear": {
+    "who": "Bramble, Critter Clinic's bear cub",
+    "description": "An animated cartoon bear cub character voice. Warm, low, slow and drowsy, cuddly and sleepy, with big yawns, gentle and friendly. American accent. Studio-quality audio.",
+    "sample": "Hi Doctor! I'm Bramble! Ahhhhh… yawn! Hee hee! That tickles! I'm so big! I was brave! I feel much better! Thank you, Doctor! Big bear hug!",
+    "id": "YG9Xw926bgcUogYyiaOn",
+    "model": "eleven_v3",
+    "settings": {
+      "stability": 0.5
+    }
+  },
+  "kitty": {
+    "who": "Mochi, Critter Clinic's kitten",
+    "description": "An animated cartoon kitten character voice. High, sweet and playful with a little sass, purry and mischievous, giggly. American accent. Studio-quality audio.",
+    "sample": "Hi Doctor! I'm Mochi! Meow! Hee hee! That tickles! Ooh, cold! Ouch! That wasn't so bad! I feel much better! Thank you, Doctor! Purrrr!",
+    "id": "CueG6nlupYhK12GttRTR",
+    "model": "eleven_v3",
+    "settings": {
+      "stability": 0.5
+    }
+  },
+  "dino": {
+    "who": "Pip, Critter Clinic's baby dinosaur",
+    "description": "An animated cartoon baby dinosaur character voice. Small but scrappy, gravelly and cute, a little raspy, brave and enthusiastic, loves to roar. American accent. Studio-quality audio.",
+    "sample": "Hi Doctor! I'm Pip! Rawr! Whoa! I'm so big! Ouch! That wasn't so bad! I was brave! I feel all better! Thank you, Doctor! Rawr!",
+    "id": "d67FZRh5G9aFLiJVrElx",
+    "model": "eleven_v3",
+    "settings": {
+      "stability": 0.5
+    }
+  },
+  "elephant": {
+    "who": "Peanut, Critter Clinic's baby elephant",
+    "description": "An animated cartoon baby elephant character voice. Big, round and goofy, lower than you'd expect but still young-sounding, slow and gentle, friendly and a little clumsy. American accent. Studio-quality audio.",
+    "sample": "Hi Doctor! I'm Peanut! Toot toot! Hee hee! That tickles! I'm a little nervous… Ouch! That wasn't so bad! I feel much better! Thank you, Doctor! Toot toot!",
+    "id": "71L19lbPhIRu3UCb9OEU",
+    "model": "eleven_v3",
+    "settings": {
+      "stability": 0.5
+    }
+  }
+}

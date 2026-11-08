@@ -12,8 +12,8 @@
         --hill: #1f9bab;
         --ink: #163a63;
         --gap: clamp(12px, 2.6vw, 44px);
-        /* Card width: four across, small enough that the cards and the heading fit the height. */
-        --card: min(21vw, calc((100dvh - 15rem) / 1.36), 380px);
+        /* Card width: three across in two rows, small enough that both rows and the heading fit the height. */
+        --card: min(26vw, calc((100dvh - 15rem - var(--gap)) / 2.72), 300px);
         --radius: clamp(16px, calc(var(--card) * 0.07), 30px);
         --font: system-ui, -apple-system, 'Helvetica Neue', sans-serif;
       }
@@ -100,6 +100,8 @@
 
       .games {
         display: flex;
+        flex-wrap: wrap;
+        max-width: calc(var(--card) * 3 + var(--gap) * 2);
         align-items: flex-start;
         justify-content: center;
         gap: var(--gap);
@@ -121,13 +123,19 @@
         animation: bob 3.2s ease-in-out infinite;
       }
       .game:nth-child(2) {
-        animation-delay: -0.8s;
+        animation-delay: -0.53s;
       }
       .game:nth-child(3) {
-        animation-delay: -1.6s;
+        animation-delay: -1.07s;
       }
       .game:nth-child(4) {
-        animation-delay: -2.4s;
+        animation-delay: -1.6s;
+      }
+      .game:nth-child(5) {
+        animation-delay: -2.13s;
+      }
+      .game:nth-child(6) {
+        animation-delay: -2.67s;
       }
       .game img {
         display: block;
@@ -155,24 +163,23 @@
         transition: transform 0.1s;
       }
 
-      /* An iPad held upright: two rows of two. */
+      /* An iPad held upright: still three on top and three below, a little wider. */
       @media (max-aspect-ratio: 1/1) and (min-aspect-ratio: 5/8) {
         :root {
-          --card: min(38vw, calc((100dvh - 15rem - var(--gap)) / 2.72), 380px);
-        }
-        .games {
-          display: grid;
-          grid-template-columns: repeat(2, var(--card));
+          --card: min(28vw, calc((100dvh - 15rem - var(--gap)) / 2.72), 300px);
         }
       }
 
       /* A phone held upright: stack the games, picture beside the name. */
       @media (max-aspect-ratio: 5/8) {
         :root {
-          --card: min(88vw, 460px);
+          /* six rows, each picture 38 % of the card wide (and as tall) */
+          --card: min(88vw, 460px, calc((100dvh - 12rem - 5 * var(--gap)) / 2.28));
         }
         .games {
           flex-direction: column;
+          flex-wrap: nowrap;
+          max-width: none;
           align-items: center;
         }
         .game {
@@ -228,6 +235,14 @@
         <button class="game" data-game="gadget-glam" data-say="Gadget Glam!">
           <img src="images/gadget-glam.jpg" alt="" />
           <span>Gadget Glam</span>
+        </button>
+        <button class="game" data-game="turbo-quest" data-say="Turbo Quest!">
+          <img src="images/turbo-quest.jpg" alt="" />
+          <span>Turbo Quest</span>
+        </button>
+        <button class="game" data-game="critter-clinic" data-say="Critter Clinic!">
+          <img src="images/critter-clinic.jpg" alt="" />
+          <span>Critter Clinic</span>
         </button>
       </nav>
     </main>
