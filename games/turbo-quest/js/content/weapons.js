@@ -43,6 +43,50 @@ export const WEAPONS = {
     arc: 0.45,
     levels: [{}, { count: 5, arc: 0.8 }, { count: 5, arc: 0.9, life: 0.75, range: 10 }],
   },
+  // Rubber balls that bounce along the ground and drop onto shields from above.
+  boing: {
+    ammo: 30,
+    rate: { kid: 2.5, dad: 3.5 },
+    speed: 7.5,
+    life: 1.6,
+    range: 8,
+    r: 0.26,
+    dmg: 1,
+    count: 1,
+    gravity: 30,
+    bounce: 7.5, // how fast it leaves the ground on each bounce
+    lift: -4, // a little upward toss
+    levels: [{}, { life: 2.3, range: 10 }, { count: 2, arc: 0.35, life: 2.3, range: 10 }],
+  },
+  // A short frosty beam that turns a Grumbly into an ice block (stand on it, or kick it).
+  frost: {
+    ammo: 20,
+    rate: { kid: 2.2, dad: 3 },
+    speed: 20,
+    life: 0.2,
+    range: 4,
+    r: 0.3,
+    dmg: 0,
+    effect: 'freeze',
+    count: 1,
+    levels: [{}, { life: 0.27, range: 5.4 }, { life: 0.3, range: 6, r: 0.42 }],
+  },
+  // Slow fireworks that steer themselves at Grumblies and burst into confetti.
+  rockets: {
+    ammo: 12,
+    rate: { kid: 1.4, dad: 1.8 },
+    speed: 7,
+    maxSpeed: 12,
+    life: 1.8,
+    range: 11,
+    r: 0.24,
+    dmg: 2,
+    count: 1,
+    arc: 0.6,
+    homing: 5, // how fast it turns (radians per second)
+    blast: 1.5, // the burst cheers everything this close
+    levels: [{}, { count: 2 }, { count: 3 }],
+  },
 };
 
 export const WEAPON_IDS = Object.keys(WEAPONS);

@@ -7,16 +7,18 @@ import { setTileSize } from '../engine/sprites.js';
 import { VIEW_TILES } from '../game/tuning.js';
 import { PLAYER_H } from '../game/player.js';
 import { hash } from '../engine/rng.js';
-import { drawTurbo } from '../art/turbo.js';
-import { drawGrumbly, balloon, grumblyFace } from '../art/grumblies.js';
+import { drawTurbo, treatSprite } from '../art/turbo.js';
+import { drawGrumbly, balloon, grumblyFace, tikiBlock, tikiCrown } from '../art/grumblies.js';
+import { BLOCK_H } from '../game/boss.js';
 import {
   SKY, LAYERS, paintLayer, groundTile, bambooTile, bridgeTile, leafyTile, thornTile, flowerTile, logSprite,
-  palmTrunk, palmCrown, fernSprite, tikiSprite, flowersSprite, cloudSprite, sunSprite,
+  palmTrunk, palmCrown, fernSprite, tikiSprite, flowersSprite, cloudSprite, sunSprite, waterTile, rockTile, raftSprite,
 } from '../art/jungle.js';
 import {
   starSprite, gemSprite, glowSprite, heartSprite, capsuleSprite, boneSprite, checkpointSprite, popperSprite,
   shotSprite, trapBubble, bubbleSprite, dustSprite, puffSprite, sparkleSprite, confettiSprite, leafSprite,
-  heartBit, rainbowSprite, hintArrow, alertMark,
+  heartBit, rainbowSprite, hintArrow, alertMark, bootsSprite, magnetSprite, boingSprite, frostSprite, rocketSprite,
+  seedSprite, coconutSprite, waveSprite,
 } from '../art/items.js';
 
 const solidish = (t) => t === T.SOLID || t === T.BREAK;
@@ -150,8 +152,14 @@ export class Renderer {
 
     for (const p of world.platforms) {
       if (!inView(p.x, p.w)) continue;
-      const s = logSprite(p.w);
-      this.img(s.canvas, this.sx(p.x), this.sy(p.y - 0.05), s.w * ppt, s.h * ppt);
+      if (p.kind === 'raft') {
+        const s = raftSprite(p.w);
+        const bob = Math.sin(time * 2.4 + p.x) * 0.04;
+        this.img(s.canvas, this.sx(p.x), this.sy(p.y - s.oy + bob + 0.05), s.w * ppt, s.h * ppt);
+      } else {
+        const s = logSprite(p.w);
+        this.img(s.canvas, this.sx(p.x), this.sy(p.y - 0.05), s.w * ppt, s.h * ppt);
+      }
     }
 
     // Checkpoints (not the start) and the Party Popper.
@@ -159,8 +167,12 @@ export class Renderer {
       if (i === 0 || !inView(cp.x)) return;
       this.put(checkpointSprite(i <= world.checkpoint), cp.x + 0.4, cp.y + PLAYER_H);
     });
+    // The Party Popper (it drops in once the boss or mini-boss is cheered).
     const g0 = level.goal;
-    this.putT(popperSprite(world.won), g0.x + 0.5, g0.y, world.won ? 0 : Math.sin(time * 3) * 0.03);
+    if (world.goalOpen) {
+      const drop = Math.max(0, 1 - (world.time - world.goalOpenAt) * 2.5);
+      this.putT(popperSprite(world.won), g0.x + 0.5, g0.y - drop * drop * 8, world.won ? 0 : Math.sin(time * 3) * 0.03);
+    }
 
     this.drawItems(world, time, inView);
 
@@ -172,6 +184,7 @@ export class Renderer {
     }
 
     this.drawEnemies(world, time, inView);
+    if (world.boss && world.boss.alive) this.drawBoss(world.boss, time);
     for (const b of world.balloons) {
       const s = balloon(b.kind);
       const rot = Math.sin(b.t * 3) * 0.12;
@@ -182,7 +195,56 @@ export class Renderer {
 
     this.drawPlayer(view);
     this.drawShots(world, time);
+    this.drawEnemyShots(world, time);
     this.drawParticles(view.particles);
+  }
+
+  drawBoss(b, time) {
+    const g = this.g;
+    const ppt = this.ppt;
+    // the shadow where it will land
+    if (b.state === 'hop') {
+      g.fillStyle = 'rgba(40,20,60,0.3)';
+      g.beginPath();
+      g.ellipse(this.sx(b.landX), this.sy(b.feetY), b.w * 0.6 * ppt, 0.18 * ppt, 0, 0, Math.PI * 2);
+      g.fill();
+    }
+    const squash = b.state === 'crouch' ? 0.85 : b.state === 'hop' && b.vy < 0 ? 1.08 : 1;
+    const wob = b.state === 'dizzy' ? Math.sin(time * 9) * 0.06 : b.state === 'wake' ? Math.sin(time * 40) * 0.04 : 0;
+    g.save();
+    g.translate(this.sx(b.cx), this.sy(b.y + b.h));
+    g.rotate(wob);
+    g.scale(1 / Math.sqrt(squash), squash);
+    for (let i = 0; i < b.blocks; i++) {
+      const top = i === b.blocks - 1;
+      const s = tikiBlock(top ? (b.vulnerable ? 'glow' : 'top') : 'grumpy');
+      const sway = Math.sin(time * 3 + i) * 0.03 * (i + 1);
+      const k = b.flash > 0 ? 1.06 : 1;
+      this.img(s.canvas, (sway - s.ox * k) * ppt, (-i * BLOCK_H - s.oy * k) * ppt, s.w * ppt * k, s.h * ppt * k);
+      if (top) {
+        const c = tikiCrown();
+        this.img(c.canvas, (sway - c.ox) * ppt, (-(i + 1) * BLOCK_H - c.oy + 0.1) * ppt, c.w * ppt, c.h * ppt);
+      }
+    }
+    g.restore();
+    if (b.vulnerable) {
+      // dizzy stars round the top
+      const st = sparkleSprite(0);
+      for (let k = 0; k < 3; k++) {
+        const a = time * 4 + (k * Math.PI * 2) / 3;
+        this.put(st, b.cx + Math.cos(a) * 0.9, b.y - 0.3 + Math.sin(a) * 0.25, 1.2);
+      }
+    }
+  }
+
+  drawEnemyShots(world, time) {
+    const pool = world.enemyShots;
+    for (let i = 0; i < pool.count; i++) {
+      const s = pool.items[i];
+      if (s.kind === 'wave') this.putT(waveSprite(), s.x, s.y + 0.3, 0, 0.9 + Math.sin(time * 20 + i) * 0.1, 1);
+      else if (s.kind === 'coconut') this.putT(coconutSprite(), s.x, s.y, time * 8, s.r / 0.3);
+      else this.put(seedSprite(), s.x, s.y, (s.r / 0.32) * (1 + Math.sin(time * 12 + i) * 0.06));
+    }
   }
 
   drawTiles(world, cam, camX, camY) {
@@ -210,6 +272,8 @@ export class Renderer {
         else if (t === T.BRIDGE) s = bridgeTile();
         else if (t === T.BREAK) s = leafyTile(v % 2);
         else if (t === T.THORN) s = thornTile(kid);
+        else if (t === T.WATER) s = waterTile(tileAt(grid, cx, cy - 1) !== T.WATER, (Math.floor(world.time * 3) + cx) % 3);
+        else if (t === T.ROCK) s = rockTile(tileAt(grid, cx, cy - 1) !== T.ROCK, v % 2);
         else s = flowerTile();
         const x0 = this.sx(cx);
         this.img(s.canvas, x0, y0, this.sx(cx + 1) - x0, y1 - y0);
@@ -229,6 +293,11 @@ export class Renderer {
       else if (it.kind === 'giant') {
         this.put(glowSprite('#fff0a0'), it.x, it.y + bob, 0.8);
         this.putT(boneSprite(), it.x, it.y + bob, Math.sin(time * 2.5) * 0.15);
+      } else if (it.kind === 'zoom') this.putT(bootsSprite(), it.x, it.y + bob, Math.sin(time * 4) * 0.1);
+      else if (it.kind === 'magnet') this.putT(magnetSprite(), it.x, it.y + bob, Math.sin(time * 3) * 0.15);
+      else if (it.kind === 'treat') {
+        this.put(glowSprite('#ffd0a0'), it.x, it.y + bob, 0.7);
+        this.put(treatSprite(), it.x, it.y + bob, 1 + Math.sin(time * 5) * 0.05);
       } else if (it.kind === 'drop') {
         if (it.life < 2 && Math.floor(time * 10) % 2) continue;
         this.put(capsuleSprite(it.weapon), it.x, it.y + bob, 0.85);
@@ -252,19 +321,28 @@ export class Renderer {
       a.squash += (target - a.squash) * Math.min(1, dt * 14);
       a.step += Math.abs(e.vx) * dt * 9;
       a.wing += dt * (e.state === 'wiggle' ? 60 : 28);
-      const alert = e.state === 'alert' || e.state === 'wiggle' || e.state === 'hurry' || e.state === 'swoop';
-      const wob = e.state === 'wiggle' ? Math.sin(time * 50) * 0.06 : 0;
+      const st = e.state;
+      const alert = st === 'alert' || st === 'wiggle' || st === 'hurry' || st === 'swoop' || st === 'paw' || st === 'rush';
+      const mood = e.frozen ? 'grumpy' : st === 'dizzy' ? 'dizzy' : st === 'puff' ? 'puff' : st === 'spitting' ? 'spit' : alert ? 'alert' : 'grumpy';
+      const wob = st === 'wiggle' || st === 'paw' ? Math.sin(time * 50) * 0.06 : 0;
+      const scale = e.kind === 'bigbonker' ? 1.75 : 1;
+      const lean = st === 'rush' ? 0.15 * e.facing : 0;
       g.save();
-      g.translate(this.sx(e.cx + wob), this.sy(e.y + e.h + (e.def.move === 'fly' ? 0.1 : 0)));
+      g.translate(this.sx(e.cx + wob), this.sy(e.y + e.h + (e.def.move === 'fly' && !e.frozen ? 0.1 : 0)));
+      g.rotate(lean);
       g.scale(e.facing, 1);
       drawGrumbly(g, ppt, {
-        kind: e.kind, mood: alert ? 'alert' : 'grumpy', squash: a.squash, step: a.step, wing: a.wing,
+        kind: e.kind, mood, squash: e.frozen ? 1 : st === 'puff' ? 1.12 : a.squash, step: e.frozen ? 0 : a.step, wing: e.frozen ? 0 : a.wing,
         cloudY: e.bubbled ? undefined : (e.kind === 'hopper' ? -1.2 : -1.4) + Math.sin(time * 2 + e.phase) * 0.05,
-        flash: e.flash > 0,
+        flash: e.flash > 0, shield: e.shield && !e.frozen, frozen: e.frozen > 0, scale,
       }, this.imgFn);
       g.restore();
+      if (st === 'dizzy' && !e.frozen) {
+        const sp = sparkleSprite(0);
+        for (let k = 0; k < 2; k++) this.put(sp, e.cx + Math.cos(time * 5 + k * 3) * 0.5, e.y - 0.2 + Math.sin(time * 5 + k * 3) * 0.12);
+      }
       if (e.bubbled) this.putT(trapBubble(), e.cx, e.cy - 0.05, 0, 1 + Math.sin(time * 6) * 0.04, 1 - Math.sin(time * 6) * 0.04);
-      if (e.state === 'alert' || e.state === 'wiggle') this.put(alertMark(), e.cx, e.y - 0.75 - Math.abs(Math.sin(time * 10)) * 0.1);
+      if (st === 'alert' || st === 'wiggle' || st === 'paw') this.put(alertMark(), e.cx, e.y - 0.75 * scale - Math.abs(Math.sin(time * 10)) * 0.1);
     }
   }
 
@@ -291,6 +369,7 @@ export class Renderer {
       this.put(glowSprite('#ffb13d'), p.cx + p.facing * 0.45, p.y + 0.45, 0.4 + k * 0.6 + Math.sin(time * 30) * 0.05);
     }
     if (p.shield > 0 && p.state !== 'rescue') this.put(bubbleSprite(), p.cx, p.y + p.h * 0.55, 0.9 * v.giant + Math.sin(time * 5) * 0.03);
+    if (p.magnet > 0) this.putT(magnetSprite(), p.cx - p.facing * 0.1, p.y - 0.45, Math.sin(time * 6) * 0.2, 0.55);
     if (p.state === 'rescue') {
       const wob = Math.sin(time * 9) * 0.04;
       this.putT(bubbleSprite(), p.cx, p.y + 0.6, 0, 1.05 + wob, 1.05 - wob);
@@ -303,6 +382,20 @@ export class Renderer {
     const pool = world.shots;
     for (let i = 0; i < pool.count; i++) {
       const s = pool.items[i];
+      if (s.kind === 'boing') {
+        this.putT(boingSprite(), s.x, s.y, time * 10, s.r / 0.3);
+        continue;
+      }
+      if (s.kind === 'frost') {
+        const f = frostSprite();
+        this.putT(f, s.x - s.vx * 0.02, s.y - s.vy * 0.02, Math.atan2(s.vy, s.vx), 1.3, 1);
+        this.put(f, s.x, s.y, 1.1);
+        continue;
+      }
+      if (s.kind === 'rockets') {
+        this.putT(rocketSprite(), s.x, s.y, Math.atan2(s.vy, s.vx), 1);
+        continue;
+      }
       const sp = shotSprite(s.kind, s.big);
       const k = (s.r / 0.25) * (s.kind === 'pop' ? 0.9 : 1);
       if (s.kind === 'spread') this.putT(sp, s.x, s.y, time * 12, k * 0.8);

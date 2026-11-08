@@ -191,7 +191,9 @@ function load(file) {
     return p;
   }
   p = fetch(new URL(`../voice/${file}`, import.meta.url))
-    .then((res) => (res.ok ? res.arrayBuffer() : Promise.reject(new Error(res.status))))
+    // In the app, Capacitor hands over audio files without an HTTP status, so they come back as
+    // status 0 (not "ok") with the whole file in them. Only a real HTTP error is a failure.
+    .then((res) => (res.ok || res.status === 0 ? res.arrayBuffer() : Promise.reject(new Error(res.status))))
     .then((data) => new Promise((resolve, reject) => ctx.decodeAudioData(data, resolve, reject)))
     .catch(() => {
       buffers.delete(file);

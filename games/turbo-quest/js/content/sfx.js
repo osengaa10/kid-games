@@ -150,6 +150,60 @@ export const SFX = {
     { wave: 'triangle', f: [1046, 1046], t: 0.14, v: 0.12, at: 0.06 },
   ],
   count: [{ wave: 'triangle', f: [1318, 1568], t: 0.06, v: 0.08 }],
+
+  // --------------------------------------------------------------------------------- M2
+  spit: [
+    { wave: 'noise', t: 0.08, v: 0.12, filter: 'bandpass', ff: 1800, q: 2 },
+    { wave: 'sine', f: [500, 260], t: 0.1, v: 0.1 },
+  ],
+  puff: [{ wave: 'sine', f: [200, 320], t: 0.25, v: 0.06 }],
+  clang: [
+    { wave: 'triangle', f: [1240, 1180], t: 0.18, v: 0.08 },
+    { wave: 'square', f: [1870, 1800], t: 0.08, v: 0.03 },
+    { wave: 'noise', t: 0.04, v: 0.08, filter: 'highpass', ff: 4000 },
+  ],
+  freeze: [
+    { wave: 'noise', t: 0.25, v: 0.1, filter: 'highpass', ff: 5000 },
+    { wave: 'sine', f: [1800, 2600], t: 0.2, v: 0.05 },
+  ],
+  thaw: [{ wave: 'noise', t: 0.2, v: 0.08, filter: 'bandpass', ff: 2500, q: 3 }],
+  kick: [
+    { wave: 'sine', f: [200, 90], t: 0.12, v: 0.2 },
+    { wave: 'noise', t: 0.3, v: 0.06, filter: 'highpass', ff: 3000, at: 0.05 },
+  ],
+  blast: [
+    { wave: 'noise', t: 0.35, v: 0.22, filter: 'lowpass', ff: 1800 },
+    { wave: 'sine', f: [300, 60], t: 0.3, v: 0.2 },
+    { wave: 'triangle', f: [1046, 1568], t: 0.15, v: 0.06, at: 0.08 },
+  ],
+  paw: [{ wave: 'noise', t: 0.12, v: 0.1, filter: 'lowpass', ff: 600 }],
+  thump: [
+    { wave: 'sine', f: [120, 40], t: 0.35, v: 0.35 },
+    { wave: 'noise', t: 0.3, v: 0.18, filter: 'lowpass', ff: 400 },
+  ],
+  bossWake: [
+    { wave: 'sawtooth', f: [90, 140], t: 0.6, v: 0.08, filter: 'lowpass', ff: 700 },
+    { wave: 'sawtooth', f: [140, 90], t: 0.5, v: 0.08, at: 0.55, filter: 'lowpass', ff: 700 },
+  ],
+  bossHit: [
+    { wave: 'square', f: [600, 300], t: 0.18, v: 0.08 },
+    { wave: 'noise', t: 0.2, v: 0.2, filter: 'bandpass', ff: 1500 },
+    { wave: 'triangle', f: [784, 1568], t: 0.25, v: 0.08, at: 0.12 },
+  ],
+  goal: [
+    { wave: 'triangle', f: [523, 523], t: 0.1, v: 0.1 },
+    { wave: 'triangle', f: [784, 784], t: 0.1, v: 0.1, at: 0.1 },
+    { wave: 'triangle', f: [1046, 1046], t: 0.3, v: 0.1, at: 0.2 },
+  ],
+  raft: [{ wave: 'noise', t: 0.4, v: 0.08, filter: 'lowpass', ff: 900 }],
+  splash: [
+    { wave: 'noise', t: 0.35, v: 0.2, filter: 'bandpass', ff: 1400, q: 0.8 },
+    { wave: 'sine', f: [600, 200], t: 0.2, v: 0.08 },
+  ],
+  locked: [
+    { wave: 'square', f: [220, 220], t: 0.08, v: 0.05 },
+    { wave: 'square', f: [196, 196], t: 0.12, v: 0.05, at: 0.1 },
+  ],
 };
 
 // Stars collected in a row climb a cheerful (pentatonic) scale.

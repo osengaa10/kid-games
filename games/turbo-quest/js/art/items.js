@@ -63,7 +63,7 @@ export const heartSprite = () =>
 // A glass capsule with what's inside drawn small: 'bubble', 'spread', 'shield'.
 export const capsuleSprite = (kind) =>
   sprite(`i-cap-${kind}`, 1.0, 1.0, (g) => {
-    const ring = { bubble: '#2d8fe0', spread: '#f0a300', shield: '#35c2c2' }[kind] || '#888';
+    const ring = { bubble: '#2d8fe0', spread: '#f0a300', shield: '#35c2c2', boing: '#e8455a', frost: '#3fb8f0', rockets: '#ff8a2a' }[kind] || '#888';
     ellipse(g, 0.5, 0.5, 0.42, 0.42, 'rgba(225,245,255,0.55)', ring, 0.06);
     if (kind === 'bubble') {
       for (const [x, y, r] of [[0.42, 0.56, 0.14], [0.62, 0.42, 0.1], [0.6, 0.64, 0.07]]) {
@@ -75,6 +75,42 @@ export const capsuleSprite = (kind) =>
         starPath(g, x, y, s, s * 0.45);
         fillStroke(g, '#ffd23a', '#d27a00', 0.02);
       }
+    } else if (kind === 'boing') {
+      for (const [x, y, r] of [[0.38, 0.6, 0.12], [0.62, 0.48, 0.14]]) {
+        ellipse(g, x, y, r, r, '#ff4f6d', '#a0203a', 0.025);
+        ellipse(g, x - r * 0.35, y - r * 0.35, r * 0.25, r * 0.2, '#ffffff');
+      }
+      g.strokeStyle = 'rgba(160,32,58,0.5)';
+      g.lineWidth = 0.02;
+      g.beginPath();
+      g.arc(0.5, 0.75, 0.2, Math.PI * 1.1, Math.PI * 1.9);
+      g.stroke();
+    } else if (kind === 'frost') {
+      g.strokeStyle = '#3fb8f0';
+      g.lineWidth = 0.04;
+      for (let i = 0; i < 3; i++) {
+        const a = (i / 3) * Math.PI;
+        g.beginPath();
+        g.moveTo(0.5 + Math.cos(a) * 0.22, 0.5 + Math.sin(a) * 0.22);
+        g.lineTo(0.5 - Math.cos(a) * 0.22, 0.5 - Math.sin(a) * 0.22);
+        g.stroke();
+      }
+      ellipse(g, 0.5, 0.5, 0.06, 0.06, '#e6faff', '#3fb8f0', 0.02);
+    } else if (kind === 'rockets') {
+      for (const [x, y, a] of [[0.36, 0.55, -0.5], [0.6, 0.45, -0.2]]) {
+        g.save();
+        g.translate(x, y);
+        g.rotate(a);
+        rrect(g, -0.05, -0.12, 0.1, 0.26, 0.03);
+        fillStroke(g, '#ff8a2a', '#a04a00', 0.02);
+        g.beginPath();
+        g.moveTo(-0.05, -0.12);
+        g.lineTo(0, -0.21);
+        g.lineTo(0.05, -0.12);
+        g.closePath();
+        fillStroke(g, '#ffd23a', '#a04a00', 0.02);
+        g.restore();
+      }
     } else if (kind === 'shield') {
       ellipse(g, 0.5, 0.5, 0.24, 0.24, 'rgba(120,240,240,0.35)', '#35c2c2', 0.04);
       starPath(g, 0.5, 0.5, 0.13, 0.05, 4);
@@ -83,6 +119,53 @@ export const capsuleSprite = (kind) =>
     }
     ellipse(g, 0.34, 0.28, 0.1, 0.06, 'rgba(255,255,255,0.85)', null, 0, -0.6);
   }, 0.5, 0.5);
+
+// Zoom Boots: a pair of winged sneakers.
+export const bootsSprite = () =>
+  sprite('i-boots', 1.1, 0.8, (g) => {
+    for (const [x, y] of [[0.3, 0.5], [0.68, 0.42]]) {
+      g.beginPath();
+      g.moveTo(x - 0.16, y - 0.16);
+      g.lineTo(x + 0.02, y - 0.16);
+      g.lineTo(x + 0.06, y);
+      g.lineTo(x + 0.22, y + 0.06);
+      g.lineTo(x + 0.22, y + 0.16);
+      g.lineTo(x - 0.16, y + 0.16);
+      g.closePath();
+      fillStroke(g, '#ff4f6d', '#a0203a', 0.03);
+      g.fillStyle = '#ffffff';
+      g.fillRect(x - 0.16, y + 0.1, 0.38, 0.06);
+      // wing
+      g.beginPath();
+      g.moveTo(x - 0.14, y - 0.06);
+      g.quadraticCurveTo(x - 0.4, y - 0.26, x - 0.34, y - 0.02);
+      g.quadraticCurveTo(x - 0.26, y + 0.02, x - 0.14, y);
+      fillStroke(g, '#ffffff', '#7ab8e8', 0.02);
+    }
+  }, 0.55, 0.4);
+
+// The Magnet Collar: a horseshoe magnet.
+export const magnetSprite = () =>
+  sprite('i-magnet', 0.9, 0.9, (g) => {
+    g.beginPath();
+    g.arc(0.45, 0.42, 0.26, Math.PI, 0);
+    g.lineWidth = 0.16;
+    g.strokeStyle = '#e8463d';
+    g.stroke();
+    g.fillStyle = '#e8463d';
+    g.fillRect(0.11, 0.42, 0.16, 0.22);
+    g.fillRect(0.63, 0.42, 0.16, 0.22);
+    g.fillStyle = '#e6eaf2';
+    g.fillRect(0.11, 0.6, 0.16, 0.12);
+    g.fillRect(0.63, 0.6, 0.16, 0.12);
+    g.beginPath();
+    g.arc(0.45, 0.42, 0.34, Math.PI, 0);
+    g.arc(0.45, 0.42, 0.18, 0, Math.PI, true);
+    g.closePath();
+    g.lineWidth = 0.03;
+    g.strokeStyle = '#8a1f1a';
+    g.stroke();
+  }, 0.45, 0.45);
 
 // The Mega Bone (Giant Pup).
 export const boneSprite = () =>
@@ -199,6 +282,83 @@ export const shotSprite = (kind, big = false) =>
     ellipse(g, 0.6, 0.6, big ? 0.36 : 0.22, big ? 0.36 : 0.22, big ? '#ffcf4d' : '#ffe766', big ? '#ff8a00' : null, 0.05);
     ellipse(g, 0.6, 0.6, big ? 0.2 : 0.12, big ? 0.2 : 0.12, '#ffffff');
   }, 0.6, 0.6);
+
+// More of Turbo's shots: a Boing Ball, a frosty streak, a firework rocket.
+export const boingSprite = () =>
+  sprite('i-boing', 0.7, 0.7, (g) => {
+    ellipse(g, 0.35, 0.35, 0.3, 0.3, '#ff4f6d', '#a0203a', 0.04);
+    g.beginPath();
+    g.arc(0.35, 0.35, 0.3, -0.4, 1.2);
+    g.lineWidth = 0.08;
+    g.strokeStyle = '#ffffff';
+    g.stroke();
+    ellipse(g, 0.25, 0.24, 0.08, 0.06, 'rgba(255,255,255,0.8)');
+  }, 0.35, 0.35);
+
+export const frostSprite = () =>
+  sprite('i-frost', 1.2, 0.6, (g) => {
+    glow(g, 0.6, 0.3, 0.3, '#bff0ff', 0.9);
+    g.strokeStyle = '#ffffff';
+    g.lineWidth = 0.05;
+    for (let i = 0; i < 3; i++) {
+      const a = (i / 3) * Math.PI;
+      g.beginPath();
+      g.moveTo(0.6 + Math.cos(a) * 0.17, 0.3 + Math.sin(a) * 0.17);
+      g.lineTo(0.6 - Math.cos(a) * 0.17, 0.3 - Math.sin(a) * 0.17);
+      g.stroke();
+    }
+  }, 0.6, 0.3);
+
+export const rocketSprite = () =>
+  sprite('i-rocket', 0.8, 0.4, (g) => {
+    rrect(g, 0.12, 0.1, 0.5, 0.2, 0.08);
+    fillStroke(g, '#ff8a2a', '#a04a00', 0.03);
+    g.beginPath();
+    g.moveTo(0.62, 0.1);
+    g.lineTo(0.78, 0.2);
+    g.lineTo(0.62, 0.3);
+    g.closePath();
+    fillStroke(g, '#ffd23a', '#a04a00', 0.03);
+    g.fillStyle = '#ffffff';
+    g.fillRect(0.3, 0.16, 0.18, 0.08);
+    glow(g, 0.1, 0.2, 0.1, '#fff09a', 1);
+  }, 0.45, 0.2);
+
+// The Grumblies' shots, all pink-purple with a dark outline ("don't touch"): a seed bubble, a
+// coconut, and the shockwave that rolls along the floor.
+export const seedSprite = () =>
+  sprite('i-seed', 0.8, 0.8, (g) => {
+    ellipse(g, 0.4, 0.4, 0.32, 0.32, '#ff7ac8', '#7a1f6a', 0.06);
+    ellipse(g, 0.4, 0.4, 0.16, 0.16, '#ffc4e6');
+    ellipse(g, 0.3, 0.28, 0.07, 0.05, '#ffffff');
+  }, 0.4, 0.4);
+
+export const coconutSprite = () =>
+  sprite('i-coconut', 0.8, 0.8, (g) => {
+    ellipse(g, 0.4, 0.4, 0.3, 0.3, '#8a5a2b', '#3e230c', 0.05);
+    for (const [x, y] of [[0.32, 0.3], [0.48, 0.3], [0.4, 0.44]]) ellipse(g, x, y, 0.04, 0.04, '#3e230c');
+    g.strokeStyle = '#ff7ac8';
+    g.lineWidth = 0.05;
+    g.beginPath();
+    g.arc(0.4, 0.4, 0.36, 0, Math.PI * 2);
+    g.stroke();
+  }, 0.4, 0.4);
+
+export const waveSprite = () =>
+  sprite('i-wave', 1.0, 0.8, (g) => {
+    g.beginPath();
+    g.moveTo(0.05, 0.8);
+    g.quadraticCurveTo(0.2, 0.1, 0.5, 0.05);
+    g.quadraticCurveTo(0.8, 0.1, 0.95, 0.8);
+    g.closePath();
+    fillStroke(g, 'rgba(255,122,200,0.75)', '#7a1f6a', 0.05);
+    g.beginPath();
+    g.moveTo(0.25, 0.75);
+    g.quadraticCurveTo(0.35, 0.3, 0.5, 0.28);
+    g.lineWidth = 0.05;
+    g.strokeStyle = 'rgba(255,255,255,0.8)';
+    g.stroke();
+  }, 0.5, 0.8);
 
 // A Grumbly caught in a bubble.
 export const trapBubble = () =>

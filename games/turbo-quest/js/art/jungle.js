@@ -214,6 +214,69 @@ export const flowerTile = () =>
     for (const x of [0.3, 0.5, 0.7]) ellipse(g, x, 0.1, 0.035, 0.025, '#fff36b');
   });
 
+// The river: a surface tile with ripples (offset by `phase` for movement) and deep water below.
+export const waterTile = (top, phase) =>
+  sprite(`j-water${top ? 't' : 'd'}${phase}`, 1, 1, (g) => {
+    g.fillStyle = top ? '#4cc0e8' : '#2f9ccf';
+    g.fillRect(0, 0, 1, 1);
+    if (!top) {
+      g.fillStyle = 'rgba(255,255,255,0.08)';
+      g.fillRect(0.1 + phase * 0.2, 0.3, 0.3, 0.05);
+      return;
+    }
+    g.fillStyle = '#8fe3ff';
+    g.beginPath();
+    g.moveTo(0, 0.18);
+    for (let i = 0; i <= 8; i++) g.lineTo(i / 8, 0.15 + Math.sin((i / 8) * Math.PI * 2 + phase * 1.6) * 0.05);
+    g.lineTo(1, 0);
+    g.lineTo(0, 0);
+    g.closePath();
+    g.fill();
+    g.fillStyle = 'rgba(255,255,255,0.7)';
+    g.fillRect(0.15 + phase * 0.15, 0.32, 0.25, 0.04);
+    g.fillRect(0.6 - phase * 0.1, 0.55, 0.18, 0.03);
+  });
+
+// A mossy river rock.
+export const rockTile = (top, v) =>
+  sprite(`j-rock${top ? 't' : 'b'}${v}`, 1, 1, (g) => {
+    rrect(g, 0.03, top ? 0.05 : -0.1, 0.94, top ? 1.05 : 1.2, top ? 0.3 : 0.12);
+    fillStroke(g, '#8f9aa8', '#4f5866', 0.04);
+    ellipse(g, 0.35 + v * 0.1, 0.55, 0.12, 0.08, '#a7b1be');
+    if (top) {
+      g.beginPath();
+      g.ellipse(0.5, 0.12, 0.4, 0.1, 0, Math.PI, 0);
+      g.fillStyle = '#5fbf5a';
+      g.fill();
+      ellipse(g, 0.3, 0.2, 0.12, 0.06, '#5fbf5a');
+    }
+  });
+
+// The raft: lashed logs with a little flag.
+export const raftSprite = (w) =>
+  sprite(`j-raft${w}`, w, 1.4, (g) => {
+    for (let i = 0; i < 3; i++) {
+      rrect(g, 0.05, 0.85 + i * 0.12 - 0.05, w - 0.1, 0.2, 0.1);
+      fillStroke(g, i % 2 ? '#a8662e' : '#b97a40', '#5e3412', 0.03);
+    }
+    g.strokeStyle = J.rope;
+    g.lineWidth = 0.05;
+    for (const x of [0.4, w - 0.4]) {
+      g.beginPath();
+      g.moveTo(x, 0.82);
+      g.lineTo(x, 1.22);
+      g.stroke();
+    }
+    g.fillStyle = '#7a4a22';
+    g.fillRect(w / 2 - 0.04, 0.05, 0.08, 0.8);
+    g.beginPath();
+    g.moveTo(w / 2 + 0.04, 0.08);
+    g.lineTo(w / 2 + 0.55, 0.22);
+    g.lineTo(w / 2 + 0.04, 0.38);
+    g.closePath();
+    fillStroke(g, '#ff8a2a', '#a04a00', 0.03);
+  }, 0, 0.85);
+
 export const logSprite = (w) =>
   sprite(`j-log${w}`, w, 0.6, (g) => {
     rrect(g, 0.04, 0.04, w - 0.08, 0.48, 0.22);

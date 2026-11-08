@@ -5,7 +5,8 @@
 //
 // Keyboard: ←/→ or A/D move, ↑/↓ or W/S aim and drop, Space/Z jump, X/J fire, C/K dash,
 // V turbo, Esc/P pause. Controller (standard layout): stick or d-pad, A jump, X or B fire,
-// RB dash, Y or LB turbo, Menu pause.
+// RB dash, Y or LB turbo, Menu pause. In menus the arrows, d-pad or stick move between buttons
+// and A/Space picks.
 
 const KEYS = {
   ArrowLeft: 'left', KeyA: 'left',
@@ -19,7 +20,7 @@ const KEYS = {
   Escape: 'pause', KeyP: 'pause',
 };
 const PAD = { 0: 'jump', 1: 'fire', 2: 'fire', 3: 'turbo', 4: 'turbo', 5: 'dash', 9: 'pause', 12: 'up', 13: 'down', 14: 'left', 15: 'right' };
-const ACTIONS = ['jump', 'fire', 'dash', 'turbo', 'pause'];
+const ACTIONS = ['jump', 'fire', 'dash', 'turbo', 'pause', 'left', 'right', 'up', 'down'];
 const SOURCES = ['key', 'pad', 'touch'];
 const DEAD = 0.25;
 
@@ -76,6 +77,13 @@ export class Input {
     for (const a of now) if (!this.padHeld.has(a)) this.padPresses[a] = (this.padPresses[a] || 0) + 1;
     const ax = axis(pad.axes[0] || 0);
     const ay = axis(pad.axes[1] || 0);
+    // pushing the stick past halfway counts as a press of that direction (for the menus)
+    const push = (v, was, neg, pos) => {
+      if (v <= -0.5 && was > -0.5) this.padPresses[neg] = (this.padPresses[neg] || 0) + 1;
+      if (v >= 0.5 && was < 0.5) this.padPresses[pos] = (this.padPresses[pos] || 0) + 1;
+    };
+    push(ax, this.padAxes.x, 'left', 'right');
+    push(ay, this.padAxes.y, 'up', 'down');
     if (now.size || ax || ay) this.setSource('pad');
     this.padHeld = now;
     this.padAxes.x = ax;

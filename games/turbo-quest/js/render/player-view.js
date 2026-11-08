@@ -112,6 +112,7 @@ export class PlayerView {
     P.flutter = p.fluttering ? this.spin : null;
     P.packKick = this.kick;
     P.nozzle = p.gun ? p.gun.id : 'pop';
+    P.look = this.look || null;
     const victory = p.state === 'victory';
     P.eye = this.hurtFace > 0 ? 'hurt' : victory || p.fluttering || p.state === 'rescue' ? 'happy' : this.blink > 0 ? 'blink' : air && p.vy > 9 ? 'wide' : 'open';
     P.mouth = this.hurtFace > 0 ? 'o' : victory || p.fluttering || p.turbo > 0 ? 'grin' : air ? 'open' : speed > 4 ? 'open' : 'smile';

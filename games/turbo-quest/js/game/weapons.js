@@ -1,12 +1,16 @@
 // Firing, shots and weapon pickups. No DOM.
 //
-// Kid Mode: the Pop-Pack fires by itself, only when a Grumbly is ahead (within about 8 tiles, in a
-// 70° cone), and aims at it. Weapons never run out.
+// Kid Mode: the Pop-Pack fires by itself, only when a Grumbly is ahead (within the weapon's reach,
+// in a 70° cone), and aims at it. Weapons never run out.
 // Dad Mode: FIRE fires (hold for steady fire). Aim with the stick: forward, up-forward, up, and
 // down while in the air. Light aim assist bends a shot up to 12° onto a Grumbly. Holding FIRE
 // while standing still charges the Pop Blaster's Big Pop. With auto-fire on, the Pop-Pack fires
 // by itself and FIRE only charges.
+// Shots: Boing Balls fall and bounce (and get round shields); Fizz Rockets steer themselves and
+// burst (cheering everything close, shields or not); the Frosty Ray freezes; shields block other
+// shots that hit their front.
 import { WEAPONS, weaponSpec } from '../content/weapons.js';
+import { POWERUPS } from '../content/powerups.js';
 import { Pool } from '../engine/pool.js';
 import { T, tileAt, isSolid } from '../engine/collide.js';
 
@@ -29,7 +33,10 @@ export class Gun {
 }
 
 export function makeShots() {
-  return new Pool(() => ({ x: 0, y: 0, vx: 0, vy: 0, life: 0, max: 1, r: 0.2, dmg: 1, pierce: 0, drag: 0, rise: 0, kind: 'pop', effect: null, big: false, hits: [] }), 90);
+  return new Pool(() => ({
+    x: 0, y: 0, vx: 0, vy: 0, life: 0, max: 1, r: 0.2, dmg: 1, pierce: 0, drag: 0, rise: 0, gravity: 0, bounce: 0,
+    homing: 0, maxSpeed: 0, blast: 0, kind: 'pop', effect: null, big: false, hits: [],
+  }), 90);
 }
 
 // The muzzle: the Pop-Pack's nozzle over Turbo's shoulder.
@@ -37,12 +44,18 @@ function muzzle(pl, ax, ay) {
   return { x: pl.cx + ax * 0.45 + (ay ? 0 : pl.facing * 0.05), y: pl.y + 0.45 + ay * 0.5 };
 }
 
-// The nearest Grumbly within `cone` of the direction (dx, dy), or null.
+// Things worth shooting at: Grumblies (not frozen ones: they're platforms now), and the boss's
+// weak spot while it's dizzy.
+function* targets(w) {
+  for (const e of w.enemies) if (e.alive && !e.frozen) yield e;
+  if (w.boss && w.boss.vulnerable) yield w.boss.weakSpot();
+}
+
+// The nearest target within `cone` of the direction (dx, dy), or null.
 export function findTarget(w, x, y, dx, dy, cone, range = RANGE) {
   let best = null;
   let bestD = Infinity;
-  for (const e of w.enemies) {
-    if (!e.alive) continue;
+  for (const e of targets(w)) {
     const ex = e.cx - x;
     const ey = e.cy - y;
     const d = Math.hypot(ex, ey);
@@ -102,7 +115,7 @@ export function updateGun(w, intent, dt) {
   }
 }
 
-// Bends the aim onto a Grumbly that's nearly in line with it.
+// Bends the aim onto a target that's nearly in line with it.
 function assist(w, pl, aim) {
   const m = muzzle(pl, aim.x, aim.y);
   const t = findTarget(w, m.x, m.y, aim.x, aim.y, ASSIST_CONE, 10);
@@ -154,7 +167,7 @@ function fire(w, gun, spec, rate, ax, ay, big) {
     s.x = m.x;
     s.y = m.y;
     s.vx = Math.cos(a) * spec.speed;
-    s.vy = Math.sin(a) * spec.speed;
+    s.vy = Math.sin(a) * spec.speed + (spec.lift || 0);
     s.life = s.max = spec.life;
     s.r = spec.r;
     s.dmg = spec.dmg;
@@ -163,10 +176,16 @@ function fire(w, gun, spec, rate, ax, ay, big) {
     s.effect = spec.effect || null;
     s.drag = spec.drag || 0;
     s.rise = spec.rise || 0;
+    s.gravity = spec.gravity || 0;
+    s.bounce = spec.bounce || 0;
+    s.homing = spec.homing || 0;
+    s.maxSpeed = spec.maxSpeed || 0;
+    s.blast = spec.blast || 0;
     s.big = big;
     s.hits.length = 0;
   }
   gun.cool = 1 / rate;
+  w.shotsFired++;
   if (ax) pl.facing = ax > 0 ? 1 : -1;
   if (gun.id !== 'pop' && w.mode === 'dad') {
     gun.ammo--;
@@ -190,9 +209,14 @@ export function updateShots(w, dt) {
       s.vx *= 1 - s.drag * dt;
       s.vy -= s.rise * dt;
     }
+    if (s.homing) steer(w, s, dt);
+    if (s.gravity) s.vy = Math.min(14, s.vy + s.gravity * dt);
+    const px = s.x;
+    const py = s.y;
     s.x += s.vx * dt;
     s.y += s.vy * dt;
     if (s.life <= 0) {
+      if (s.blast) burst(w, s);
       w.events.emit('shotEnd', s);
       pool.free(i);
       continue;
@@ -201,13 +225,82 @@ export function updateShots(w, dt) {
     const cy = Math.floor(s.y);
     const t = tileAt(w.grid, cx, cy);
     if (isSolid(t)) {
-      if (t === T.BREAK) w.breakTile(cx, cy);
-      w.events.emit('shotHit', s);
-      pool.free(i);
-      continue;
+      // Boing Balls bounce off the ground (and off ceilings); anything else stops.
+      if (s.bounce && Math.floor(py) !== cy && Math.floor(px) === cx) {
+        s.y = py;
+        s.vy = s.vy > 0 ? -s.bounce : Math.abs(s.vy) * 0.5;
+        w.events.emit('boing', s);
+      } else {
+        if (t === T.BREAK) w.breakTile(cx, cy);
+        if (s.blast) burst(w, s);
+        w.events.emit('shotHit', s);
+        pool.free(i);
+        continue;
+      }
     }
-    if (hitEnemies(w, s)) pool.free(i);
+    if (popEnemyShots(w, s) || hitBoss(w, s) || hitEnemies(w, s)) pool.free(i);
   }
+}
+
+// Fizz Rockets turn toward the nearest target and speed up.
+function steer(w, s, dt) {
+  const t = findTarget(w, s.x, s.y, s.vx, s.vy, -1, 11);
+  const speed = Math.min(s.maxSpeed || 12, Math.hypot(s.vx, s.vy) + 6 * dt);
+  let a = Math.atan2(s.vy, s.vx);
+  if (t) {
+    const want = Math.atan2(t.cy - s.y, t.cx - s.x);
+    let d = want - a;
+    while (d > Math.PI) d -= Math.PI * 2;
+    while (d < -Math.PI) d += Math.PI * 2;
+    a += Math.max(-s.homing * dt, Math.min(s.homing * dt, d));
+  }
+  s.vx = Math.cos(a) * speed;
+  s.vy = Math.sin(a) * speed;
+}
+
+// A rocket's burst: cheers every Grumbly close by (shields don't help), hurts the boss's weak spot.
+function burst(w, s) {
+  w.events.emit('blast', { x: s.x, y: s.y, r: s.blast });
+  for (const e of w.enemies) {
+    if (!e.alive || Math.hypot(e.cx - s.x, e.cy - s.y) > s.blast + e.w / 2) continue;
+    if (e.isBoss) w.damageBoss(e, 1);
+    else w.cheer(e, 'blast');
+  }
+  const b = w.boss;
+  if (b && b.vulnerable && Math.hypot(b.cx - s.x, b.cy - s.y) < s.blast + Math.max(b.w, b.h) / 2) w.hitBoss();
+}
+
+// Turbo's shots pop the Grumblies' seeds and coconuts (not shockwaves).
+function popEnemyShots(w, s) {
+  const pool = w.enemyShots;
+  for (let i = pool.count - 1; i >= 0; i--) {
+    const e = pool.items[i];
+    if (e.kind === 'wave') continue;
+    if ((e.x - s.x) ** 2 + (e.y - s.y) ** 2 > (e.r + s.r) ** 2) continue;
+    w.events.emit('popShot', e);
+    pool.free(i);
+    if (s.blast) burst(w, s);
+    return !s.big;
+  }
+  return false;
+}
+
+// The boss: while it's dizzy any hit counts (its top block pops off); otherwise shots bounce off.
+function hitBoss(w, s) {
+  const b = w.boss;
+  if (!b || !b.alive) return false;
+  const nx = Math.max(b.x, Math.min(s.x, b.x + b.w));
+  const ny = Math.max(b.y, Math.min(s.y, b.y + b.h));
+  if ((s.x - nx) ** 2 + (s.y - ny) ** 2 > s.r * s.r) return false;
+  if (s.blast) burst(w, s);
+  else if (b.vulnerable) w.hitBoss();
+  else w.events.emit('blocked', { x: s.x, y: s.y });
+  return true;
+}
+
+// A shot coming at a shield's front, level or rising (Boing Balls falling onto it get past).
+function fromFront(e, s) {
+  return (s.x - e.cx) * e.facing > 0 && s.vy < 2;
 }
 
 // Returns true when the shot is used up.
@@ -218,20 +311,48 @@ function hitEnemies(w, s) {
     const nx = Math.max(e.x, Math.min(s.x, e.x + e.w));
     const ny = Math.max(e.y, Math.min(s.y, e.y + e.h));
     if ((s.x - nx) ** 2 + (s.y - ny) ** 2 > s.r * s.r) continue;
+    if (s.blast) {
+      burst(w, s);
+      return true;
+    }
+    if (e.frozen) {
+      w.cheer(e, 'shatter');
+      return true;
+    }
     if (e.bubbled) {
       w.cheer(e, 'pop');
       return true;
     }
-    if (s.effect === 'trap') {
-      e.trap(TRAP_TIME[w.mode]);
-      w.events.emit('trap', e);
+    if (e.shield && s.kind !== 'boing' && fromFront(e, s)) {
+      w.blockShot(e, s);
       return true;
     }
-    e.hp -= s.dmg;
-    if (e.hp <= 0) w.cheer(e, 'shot');
+    if (s.effect === 'trap') {
+      if (e.isBoss) {
+        e.flash = 0.15;
+        w.events.emit('blocked', { x: s.x, y: s.y });
+      } else {
+        e.trap(TRAP_TIME[w.mode]);
+        w.events.emit('trap', e);
+      }
+      return true;
+    }
+    if (s.effect === 'freeze') {
+      if (e.freeze(POWERUPS.freeze[w.mode])) w.events.emit('freeze', e);
+      else {
+        e.flash = 0.15;
+        w.events.emit('blocked', { x: s.x, y: s.y });
+      }
+      return true;
+    }
+    if (e.isBoss) w.damageBoss(e, s.big ? 2 : 1);
     else {
-      e.flash = 0.15;
-      w.events.emit('enemyHit', e);
+      e.hp -= s.dmg;
+      if (e.hp <= 0) w.cheer(e, 'shot');
+      else {
+        e.flash = 0.15;
+        w.events.emit('enemyHit', e);
+      }
     }
     s.hits.push(e);
     if (s.pierce-- <= 0) return true;

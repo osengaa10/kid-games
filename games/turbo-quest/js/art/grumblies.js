@@ -32,6 +32,43 @@ export const grumblyBody = (kind) =>
   }, 0.6, 1.15);
 
 function hat(g, kind, top) {
+  if (kind === 'spitter') {
+    // a collar of petals round the top
+    for (let i = 0; i < 7; i++) {
+      const a = Math.PI + (i / 6) * Math.PI;
+      ellipse(g, 0.6 + Math.cos(a) * 0.36, top + 0.2 + Math.sin(a) * 0.2, 0.09, 0.06, i % 2 ? '#ff8fc8' : '#ffb3d9', '#c23f86', 0.02, a);
+    }
+    return;
+  }
+  if (kind === 'bonker' || kind === 'bigbonker') {
+    // a little pot on its head
+    rrect(g, 0.42, top - 0.06, 0.36, 0.16, 0.05);
+    fillStroke(g, '#9aa6b8', '#56606f', 0.03);
+    ellipse(g, 0.6, top - 0.08, 0.05, 0.035, '#56606f');
+    if (kind === 'bigbonker') {
+      g.beginPath();
+      g.moveTo(0.46, top - 0.06);
+      g.lineTo(0.48, top - 0.24);
+      g.lineTo(0.54, top - 0.14);
+      g.lineTo(0.6, top - 0.28);
+      g.lineTo(0.66, top - 0.14);
+      g.lineTo(0.72, top - 0.24);
+      g.lineTo(0.74, top - 0.06);
+      g.closePath();
+      fillStroke(g, '#ffd23a', '#b5860a', 0.02);
+    }
+    return;
+  }
+  if (kind === 'charger') {
+    // a beetle horn
+    g.beginPath();
+    g.moveTo(0.78, top + 0.25);
+    g.quadraticCurveTo(1.08, top + 0.05, 1.02, top - 0.18);
+    g.quadraticCurveTo(0.96, top + 0.0, 0.7, top + 0.12);
+    g.closePath();
+    fillStroke(g, '#ffe0a8', '#a87a2a', 0.03);
+    return;
+  }
   if (kind === 'waddler') {
     // half a coconut shell
     g.beginPath();
@@ -88,7 +125,32 @@ export const grumblyFace = (mood) =>
         ellipse(g, x + 0.03, eyeY - 0.02, 0.016, 0.016, '#ffffff');
       }
     }
-    if (mood === 'grumpy') {
+    if (mood === 'dizzy') {
+      g.lineWidth = 0.03;
+      g.strokeStyle = INK;
+      for (const x of [0.27, 0.53]) {
+        g.beginPath();
+        for (let a = 0; a < 9; a += 0.4) g.lineTo(x + Math.cos(a) * a * 0.009, eyeY + Math.sin(a) * a * 0.009);
+        g.stroke();
+      }
+      g.beginPath();
+      g.moveTo(0.3, 0.4);
+      g.quadraticCurveTo(0.35, 0.36, 0.4, 0.4);
+      g.quadraticCurveTo(0.45, 0.44, 0.5, 0.4);
+      g.stroke();
+    } else if (mood === 'puff') {
+      ellipse(g, 0.12, 0.38, 0.12, 0.1, 'rgba(255,140,200,0.7)');
+      ellipse(g, 0.68, 0.38, 0.12, 0.1, 'rgba(255,140,200,0.7)');
+      ellipse(g, 0.4, 0.4, 0.08, 0.07, INK);
+      g.beginPath();
+      g.moveTo(0.17, 0.08);
+      g.lineTo(0.35, 0.14);
+      g.moveTo(0.63, 0.08);
+      g.lineTo(0.45, 0.14);
+      g.lineWidth = 0.04;
+      g.strokeStyle = INK;
+      g.stroke();
+    } else if (mood === 'grumpy') {
       // grumpy brows slanting in
       g.beginPath();
       g.moveTo(0.17, 0.1);
@@ -103,6 +165,8 @@ export const grumblyFace = (mood) =>
       g.quadraticCurveTo(0.4, 0.36, 0.48, 0.42);
       g.lineWidth = 0.035;
       g.stroke();
+    } else if (mood === 'spit') {
+      ellipse(g, 0.4, 0.4, 0.06, 0.06, INK);
     } else if (mood === 'alert') {
       g.beginPath();
       g.moveTo(0.17, 0.06);
@@ -161,10 +225,39 @@ export const rainCloud = () =>
     }
   }, 0.36, 0.22);
 
+// The pot-lid shield, held out in front.
+export const shieldSprite = (big) =>
+  sprite(`g-shield${big ? 'big' : ''}`, 0.5, 0.9, (g) => {
+    ellipse(g, 0.25, 0.45, 0.16, 0.4, '#b7c2d4', '#56606f', 0.04);
+    ellipse(g, 0.22, 0.45, 0.08, 0.3, '#d9e0ea');
+    ellipse(g, 0.28, 0.45, 0.05, 0.05, '#56606f');
+  }, 0.1, 0.45);
+
+// Frozen by the Frosty Ray: an ice block round the Grumbly.
+export const iceBlock = () =>
+  sprite('g-ice', 1.2, 1.2, (g) => {
+    rrect(g, 0.05, 0.05, 1.1, 1.1, 0.14);
+    fillStroke(g, 'rgba(170,230,255,0.55)', '#5fb8e8', 0.05);
+    g.fillStyle = 'rgba(255,255,255,0.6)';
+    g.beginPath();
+    g.moveTo(0.18, 0.15);
+    g.lineTo(0.5, 0.15);
+    g.lineTo(0.18, 0.5);
+    g.closePath();
+    g.fill();
+    g.strokeStyle = 'rgba(255,255,255,0.8)';
+    g.lineWidth = 0.025;
+    g.beginPath();
+    g.moveTo(0.8, 0.9);
+    g.lineTo(0.95, 0.75);
+    g.stroke();
+  }, 0.6, 1.15);
+
 // A cheered Grumbly: a balloon in its color with a happy face, floating away.
+const TIKI = { body: '#c47a3c', dark: '#6b3a14', belly: '#e0a066' };
 export const balloon = (kind) =>
   sprite(`g-balloon-${kind}`, 1.1, 1.5, (g) => {
-    const c = GRUMBLY_COLORS[kind];
+    const c = GRUMBLY_COLORS[kind] || TIKI;
     g.beginPath();
     g.moveTo(0.55, 1.0);
     g.quadraticCurveTo(0.5, 1.2, 0.6, 1.48);
@@ -210,6 +303,8 @@ export function drawGrumbly(g, ppt, pose, img) {
   const k = pose.kind;
   const flash = pose.flash;
   const sq = pose.squash || 1;
+  const big = pose.scale || 1;
+  if (big !== 1) g.scale(big, big);
   if (k === 'flapper') {
     const flap = Math.sin(pose.wing) * 0.5;
     put(grumblyWing(), -0.1, -0.68, -0.6 - flap, -1, 1);
@@ -229,5 +324,78 @@ export function drawGrumbly(g, ppt, pose, img) {
     const flap = Math.sin(pose.wing) * 0.5;
     put(grumblyWing(), 0.1, -0.68, -0.6 - flap);
   }
-  if (pose.cloudY !== undefined) put(rainCloud(), 0.05, pose.cloudY);
+  if (pose.shield) put(shieldSprite(k === 'bigbonker'), 0.42, -0.5);
+  if (pose.cloudY !== undefined && !pose.frozen) put(rainCloud(), 0.05, pose.cloudY);
+  if (pose.frozen) put(iceBlock(), 0, 0.05);
+}
+
+// ------------------------------------------------------------------------------ Tiki Tumble
+// A stack of grumpy tiki blocks. The top block wears a leaf crown; its eyes open (glowing) while
+// the stack is dizzy. Drawn with the stack's feet at the origin.
+export const tikiBlock = (face) =>
+  sprite(`g-tiki-${face}`, 1.9, 1.1, (g) => {
+    rrect(g, 0.08, 0.06, 1.74, 0.98, 0.18);
+    fillStroke(g, TIKI.body, TIKI.dark, 0.05);
+    g.fillStyle = 'rgba(107,58,20,0.25)';
+    g.fillRect(0.12, 0.82, 1.66, 0.08);
+    g.fillRect(0.12, 0.14, 1.66, 0.05);
+    if (face === 'glow') {
+      ellipse(g, 0.6, 0.45, 0.2, 0.17, '#fff4a8', '#ffb000', 0.04);
+      ellipse(g, 1.3, 0.45, 0.2, 0.17, '#fff4a8', '#ffb000', 0.04);
+      ellipse(g, 0.6, 0.47, 0.08, 0.08, '#3a1d06');
+      ellipse(g, 1.3, 0.47, 0.08, 0.08, '#3a1d06');
+    } else {
+      for (const x of [0.6, 1.3]) {
+        g.beginPath();
+        g.moveTo(x - 0.16, 0.42);
+        g.lineTo(x + 0.16, face === 'top' ? 0.5 : 0.46);
+        g.lineWidth = 0.06;
+        g.strokeStyle = '#3a1d06';
+        g.stroke();
+      }
+    }
+    // a big grumpy (or dizzy-happy) mouth
+    g.beginPath();
+    if (face === 'glow') {
+      g.moveTo(0.7, 0.72);
+      g.quadraticCurveTo(0.95, 0.92, 1.2, 0.72);
+    } else {
+      g.moveTo(0.7, 0.82);
+      g.quadraticCurveTo(0.95, 0.66, 1.2, 0.82);
+    }
+    g.lineWidth = 0.06;
+    g.strokeStyle = '#3a1d06';
+    g.stroke();
+    for (const x of [0.3, 1.6]) ellipse(g, x, 0.56, 0.06, 0.12, '#e0a066');
+  }, 0.95, 1.04);
+
+export const tikiCrown = () =>
+  sprite('g-tiki-crown', 2.0, 0.9, (g) => {
+    for (let i = 0; i < 5; i++) {
+      const a = -Math.PI / 2 + (i - 2) * 0.42;
+      g.save();
+      g.translate(1.0, 0.85);
+      g.rotate(a);
+      g.beginPath();
+      g.ellipse(0.38, 0, 0.38, 0.11, 0, 0, Math.PI * 2);
+      fillStroke(g, i % 2 ? '#52c25a' : '#3fae4f', '#1f6b2c', 0.03);
+      g.restore();
+    }
+  }, 1.0, 0.85);
+
+// A sticker's picture (Sticker Book, results): a happy Grumbly or a glowing tiki, feet at the
+// origin, about one tile tall. `got` false draws it grumpy (shown faded as a silhouette).
+export function drawSticker(g, ppt, kind, got, wing = 0) {
+  const img = (c, x, y, w, h) => g.drawImage(c, x, y, w, h);
+  if (kind === 'tiki') {
+    const b = tikiBlock(got ? 'glow' : 'grumpy');
+    const c = tikiCrown();
+    const k = 0.9;
+    img(b.canvas, -b.ox * ppt * k, -b.oy * ppt * k, b.w * ppt * k, b.h * ppt * k);
+    img(c.canvas, -c.ox * ppt * k, (-0.85 - c.oy) * ppt * k, c.w * ppt * k, c.h * ppt * k);
+    return;
+  }
+  g.save();
+  drawGrumbly(g, ppt, { kind, mood: got ? 'happy' : 'grumpy', squash: 1, step: 0, wing, shield: kind === 'bonker' || kind === 'bigbonker', scale: kind === 'bigbonker' ? 1.3 : 1 }, img);
+  g.restore();
 }

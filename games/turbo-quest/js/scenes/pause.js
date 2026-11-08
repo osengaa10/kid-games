@@ -1,7 +1,7 @@
 // The pause menu, over a frozen game: big picture buttons only.
 //   ▶ (green, middle)    keep playing
 //   ↻ (orange)           back to the last checkpoint
-//   house (purple)       back to the level cards (the checkpoint is saved)
+//   house (purple)       back to the map (the checkpoint is saved)
 //   four tiles (white)   back to all the games (only inside the Kid Games app)
 //   gear (corner, hold)  grown-up settings
 import { MenuScene } from './menu.js';
@@ -52,7 +52,7 @@ export class PauseScene extends MenuScene {
       return;
     }
     if (id === 'home') {
-      a.showLevels();
+      a.showMap();
       return;
     }
     if (id === 'checkpoint') {

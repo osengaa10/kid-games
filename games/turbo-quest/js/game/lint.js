@@ -39,6 +39,12 @@ export function reachableCells(level, t) {
   const grid = level.grid;
   const cells = [];
   for (let r = 0; r < grid.h; r++) for (let c = 0; c < grid.w; c++) if (standable(grid, c, r)) cells.push([c, r]);
+  // Anywhere a raft or log travels is somewhere to stand.
+  for (const p of level.platforms) {
+    const r = Math.round(p.y0);
+    const span = p.kind === 'raft' ? p.range + p.w : p.axis === 'x' ? p.range + p.w : p.w;
+    for (let c = Math.floor(p.x0); c < p.x0 + span; c++) cells.push([c, r]);
+  }
   const start = [Math.floor(level.start.x + 0.4), Math.round(level.start.y + PLAYER_H)];
   const key = (c, r) => `${c},${r}`;
   const seen = new Set([key(...start)]);

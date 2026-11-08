@@ -89,3 +89,19 @@ test('no storage at all (blocked): the game still works', () => {
   s.flush();
   assert.equal(s.profile().id, 'kid');
 });
+
+test('bosses give abilities for good; treats and badges are kept; the closet look defaults', () => {
+  const s = new Store(memory());
+  const p = s.profile('dad');
+  assert.deepEqual(p.look, { hat: 'none', fur: 'classic', pack: 'red' });
+  const r = s.recordResult('dad', result({ level: 'w1-b', mode: 'dad', ability: 'doubleJump', treats: ['treat3,4'], badges: ['noHit', 'pawsOnly'], kinds: ['tiki'] }));
+  assert.equal(r.newAbility, 'doubleJump');
+  assert.deepEqual(r.newBadges, ['noHit', 'pawsOnly']);
+  assert.deepEqual(p.abilities, ['doubleJump']);
+  assert.deepEqual(p.treats, ['treat3,4']);
+  assert.equal(p.stickers.tiki, 1);
+  const again = s.recordResult('dad', result({ level: 'w1-b', mode: 'dad', ability: 'doubleJump', badges: ['noHit', 'underPar'] }));
+  assert.equal(again.newAbility, null);
+  assert.deepEqual(again.newBadges, ['underPar']);
+  assert.deepEqual(p.levels['w1-b'].badges.dad.sort(), ['noHit', 'pawsOnly', 'underPar']);
+});

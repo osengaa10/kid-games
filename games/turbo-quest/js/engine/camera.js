@@ -23,6 +23,7 @@ export class Camera {
     this.shakeY = 0;
     this.time = 0;
     this.lookDown = 0;
+    this.lock = null; // { x0, x1 }: keep the view inside these (a boss arena)
   }
 
   setAspect(aspect) {
@@ -71,6 +72,12 @@ export class Camera {
   }
 
   clampX(x, level) {
+    const L = this.lock;
+    if (L) {
+      // A narrow arena sits in the middle of the screen; a wide one keeps the view inside it.
+      if (L.x1 - L.x0 <= this.viewW) return (L.x0 + L.x1) / 2 - this.viewW / 2;
+      return clamp(x, L.x0, L.x1 - this.viewW);
+    }
     return clamp(x, 0, Math.max(0, level.width - this.viewW));
   }
 

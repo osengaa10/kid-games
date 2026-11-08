@@ -4,13 +4,14 @@
 
 // SOLID ground, ONEWAY platforms (jump up through them), BOUNCE flowers (solid, springy),
 // BREAK leafy walls (solid until shot), BRIDGE planks (solid; Kid Mode's extra help), THORN
-// brambles (not solid; they hurt in Dad Mode and are harmless flowers in Kid Mode).
-export const T = { EMPTY: 0, SOLID: 1, ONEWAY: 2, BOUNCE: 3, BREAK: 4, BRIDGE: 5, THORN: 6 };
+// brambles (not solid; they hurt in Dad Mode and are harmless flowers in Kid Mode), WATER (not
+// solid: falling in is like a pit), ROCK (solid, drawn as a mossy boulder: river rocks).
+export const T = { EMPTY: 0, SOLID: 1, ONEWAY: 2, BOUNCE: 3, BREAK: 4, BRIDGE: 5, THORN: 6, WATER: 7, ROCK: 8 };
 
 const EPS = 1e-6;
 const ONEWAY_SLACK = 0.02; // how far below a one-way platform's top the feet may have been last step
 
-export const isSolid = (t) => t === T.SOLID || t === T.BOUNCE || t === T.BREAK || t === T.BRIDGE;
+export const isSolid = (t) => t === T.SOLID || t === T.BOUNCE || t === T.BREAK || t === T.BRIDGE || t === T.ROCK;
 // Something to stand on (solid, or a one-way platform from above).
 export const isStandable = (t) => isSolid(t) || t === T.ONEWAY;
 

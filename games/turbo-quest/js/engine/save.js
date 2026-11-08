@@ -3,6 +3,7 @@
 // own mode, controls, stars, stickers, best results and a mid-level checkpoint to resume from.
 // The storage is passed in, so the tests run it in node.
 import { ORDER } from '../content/levels/index.js';
+import { DEFAULT_LOOK } from '../content/cosmetics.js';
 
 export const KEY = 'turbo-quest:v1';
 export const VERSION = 1;
@@ -19,8 +20,11 @@ export function profileDefaults(id) {
     stars: 0, // all-time stars collected (never spent)
     stickers: {}, // Grumbly kind → times cheered
     unlocked: [ORDER[0]],
-    levels: {}, // id → { done, gems: [bool×3], best: { kid: {...}, dad: {...} } }
+    levels: {}, // id → { done, gems: [bool×3], best: { kid: {...}, dad: {...} }, badges: { kid: [], dad: [] } }
     resume: null, // a checkpoint to come back to
+    abilities: [], // given by bosses for good, e.g. 'doubleJump'
+    treats: [], // Heart Treats eaten (each is one more heart in Dad Mode)
+    look: { ...DEFAULT_LOOK }, // the Pup Closet: hat, fur, pack
   };
 }
 
@@ -42,7 +46,10 @@ export function migrate(data) {
   out.profiles = {};
   for (const id of ['kid', 'dad']) {
     const p = (data.profiles && data.profiles[id]) || {};
-    out.profiles[id] = { ...profileDefaults(id), ...p, stickers: { ...(p.stickers || {}) }, levels: { ...(p.levels || {}) } };
+    out.profiles[id] = {
+      ...profileDefaults(id), ...p, stickers: { ...(p.stickers || {}) }, levels: { ...(p.levels || {}) },
+      abilities: [...(p.abilities || [])], treats: [...(p.treats || [])], look: { ...DEFAULT_LOOK, ...(p.look || {}) },
+    };
     if (!Array.isArray(out.profiles[id].unlocked) || !out.profiles[id].unlocked.length) out.profiles[id].unlocked = [ORDER[0]];
   }
   if (out.lastProfile !== 'kid' && out.lastProfile !== 'dad') out.lastProfile = null;
@@ -125,7 +132,13 @@ export class Store {
     const newBest = !old || (res.mode === 'dad' ? res.score > old.score : res.stars > old.stars);
     if (newBest) best[res.mode] = { stars: res.stars, time: res.time, score: res.score, medal: res.medal, noHit: res.noHit };
     else best[res.mode] = { ...old, time: Math.min(old.time, res.time), medal: Math.max(old.medal || 0, res.medal || 0), noHit: old.noHit || res.noHit };
-    p.levels[res.level] = { done: true, gems, best };
+    const badges = { kid: [], dad: [], ...(prev.badges || {}) };
+    const newBadges = (res.badges || []).filter((b) => !badges[res.mode].includes(b));
+    badges[res.mode] = [...badges[res.mode], ...newBadges];
+    p.levels[res.level] = { done: true, gems, best, badges };
+    const newAbility = res.ability && !p.abilities.includes(res.ability) ? res.ability : null;
+    if (newAbility) p.abilities.push(newAbility);
+    for (const t of res.treats || []) if (!p.treats.includes(t)) p.treats.push(t);
     p.stars += res.stars;
     const firstStickers = [];
     for (const k of res.kinds) {
@@ -141,7 +154,7 @@ export class Store {
     } catch {
       /* not fatal */
     }
-    return { newBest, firstStickers, gems };
+    return { newBest, firstStickers, gems, newBadges, newAbility, badges: badges[res.mode] };
   }
 
   resetProfile(id) {

@@ -1,15 +1,20 @@
 // Grumbly behaviors, built from content/enemies.js. Each Grumbly runs one movement behavior
-// (walk, hop, fly) with its mode's numbers. They only act near the camera. No DOM.
+// (walk, hop, fly, spit, charge) with its mode's numbers. They only act near the camera. No DOM.
 //
 // A Grumbly can be:
 //   alive and grumpy
-//   bubbled (trapped by the Bubble Cannon): floats up for a few seconds; touching the bubble pops
-//   it, landing on it bounces you high. Either way the Grumbly is cheered.
+//   bubbled (Bubble Cannon): floats up for a few seconds; touching the bubble pops it, landing on
+//     it bounces you high. Either way the Grumbly is cheered.
+//   frozen (Frosty Ray): an ice block for a few seconds. Stand on it, or walk into its side to
+//     kick it sliding: it cheers every Grumbly it hits and shatters (cheered) at a wall.
 //   cheered: gone from play; the world turns it into a balloon that floats away.
+// Some carry a pot-lid shield that blocks shots from the front (world/weapons decide). The
+// mini-boss (def.boss) takes several hits, with a moment of safety after each.
 import { ENEMIES } from '../content/enemies.js';
 import { moveX, moveY, MOVE, tileAt, isStandable } from '../engine/collide.js';
 
 const GRAVITY = 40;
+const KICK_SPEED = 9;
 
 export class Enemy {
   constructor(spawn, mode) {
@@ -18,6 +23,7 @@ export class Enemy {
     this.id = spawn.id;
     this.section = spawn.section;
     this.def = def;
+    this.mode = mode;
     this.p = { ...def[mode], ...(spawn.params || {}) };
     this.w = def.w;
     this.h = def.h;
@@ -27,16 +33,28 @@ export class Enemy {
     this.homeY = this.y;
     this.vx = 0;
     this.vy = 0;
+    this.dx = 0;
+    this.dy = 0;
     this.facing = -1;
-    this.hp = def.hp;
+    this.hp = this.p.hp ?? def.hp;
+    this.maxHp = this.hp;
+    this.shield = !!def.shield;
+    this.shieldHits = this.p.shieldHits || 0;
     this.alive = true;
     this.state = 'idle';
     this.t = 0;
     this.stateT = 0;
     this.grounded = false;
     this.bubbled = 0;
+    this.frozen = 0;
+    this.sliding = 0;
     this.flash = 0;
+    this.safe = 0; // the mini-boss's moment of safety after a hit
     this.hopIndex = 0;
+    this.turnT = 0;
+    this.slamT = this.p.slam || 0;
+    this.shotsLeft = 0;
+    this.gapT = 0;
     this.phase = (spawn.x * 1.7) % 6.28;
     this.out = { landed: false, ceiling: false, shifted: 0, tile: 0 };
     if (def.move === 'fly') this.state = 'patrol';
@@ -50,24 +68,35 @@ export class Enemy {
     return this.y + this.h / 2;
   }
 
+  get isBoss() {
+    return !!this.def.boss;
+  }
+
   setState(s) {
     this.state = s;
     this.stateT = 0;
   }
 
   update(w, dt) {
+    const x0 = this.x;
+    const y0 = this.y;
     this.t += dt;
     this.stateT += dt;
     if (this.flash > 0) this.flash -= dt;
-    if (this.bubbled > 0) {
-      this.updateBubbled(w, dt);
-      return;
+    if (this.safe > 0) this.safe -= dt;
+    if (this.frozen > 0) this.updateFrozen(w, dt);
+    else if (this.bubbled > 0) this.updateBubbled(w, dt);
+    else {
+      const slow = w.enemySlow || 1;
+      const move = this.def.move;
+      if (move === 'walk') this.walk(w, dt * slow);
+      else if (move === 'hop') this.hop(w, dt * slow);
+      else if (move === 'spit') this.spit(w, dt * slow);
+      else if (move === 'charge') this.charge(w, dt * slow);
+      else this.fly(w, dt * slow);
     }
-    const slow = w.enemySlow || 1;
-    const move = this.def.move;
-    if (move === 'walk') this.walk(w, dt * slow);
-    else if (move === 'hop') this.hop(w, dt * slow);
-    else this.fly(w, dt * slow);
+    this.dx = this.x - x0;
+    this.dy = this.y - y0;
   }
 
   // ---------------------------------------------------------------------------- walkers
@@ -90,11 +119,48 @@ export class Enemy {
         if (this.stateT >= p.alertFor) this.setState('idle');
       }
     }
+    // Shield Bonkers in Dad Mode turn to keep their lid toward Turbo.
+    if (p.faceYou && Math.abs(pl.cx - this.cx) < p.faceYou && Math.abs(pl.feet - (this.y + this.h)) < 3) {
+      const want = pl.cx < this.cx ? -1 : 1;
+      if (want !== this.facing) {
+        this.turnT += dt;
+        if (this.turnT > 0.4) {
+          this.facing = want;
+          this.turnT = 0;
+        }
+      } else this.turnT = 0;
+    }
+    // The mini-boss hops and slams the ground every so often.
+    if (p.slam && this.slamUpdate(w, dt)) return;
     this.vx = this.facing * speed;
     this.fall(w, dt);
     const hit = moveX(this, this.vx * dt, w.grid);
     if (hit === MOVE.WALL) this.turn();
     else if (this.grounded && p.turnAtLedges && !this.groundAhead(w)) this.turn();
+  }
+
+  // Returns true while the slam is happening (it replaces walking).
+  slamUpdate(w, dt) {
+    const p = this.p;
+    if (this.state === 'slamAir') {
+      const landed = this.fall(w, dt);
+      if (landed) {
+        this.setState('idle');
+        this.slamT = p.slam;
+        w.slam(this);
+      }
+      return true;
+    }
+    if (this.grounded) this.slamT -= dt;
+    if (this.slamT <= 0 && this.grounded && Math.abs(w.player.cx - this.cx) < 12) {
+      this.vx = 0;
+      this.vy = -Math.sqrt(2 * GRAVITY * p.slamHop);
+      this.grounded = false;
+      this.setState('slamAir');
+      w.events.emit('hop', this);
+      return true;
+    }
+    return false;
   }
 
   turn() {
@@ -116,7 +182,7 @@ export class Enemy {
     this.grounded = r.landed;
     if (r.landed) this.vy = 0;
     if (r.ceiling) this.vy = 0;
-    if (this.y > w.grid.h + 2) this.alive = false; // fell out of the level: gone quietly
+    if (this.y > w.grid.h + 2 || w.inWater(this)) this.alive = false; // fell out of the level: gone quietly
     return this.grounded && !was;
   }
 
@@ -151,6 +217,87 @@ export class Enemy {
     }
   }
 
+  // ---------------------------------------------------------------------------- spitters
+  spit(w, dt) {
+    const p = this.p;
+    const pl = w.player;
+    this.facing = pl.cx < this.cx ? -1 : 1;
+    this.vx = 0;
+    this.fall(w, dt);
+    const dx = pl.cx - this.cx;
+    const inRange = Math.abs(dx) < p.range && Math.abs(pl.y + pl.h / 2 - this.cy) < 6 && pl.state === 'play';
+    if (this.state === 'idle') {
+      if (this.stateT >= p.interval && inRange) {
+        this.setState('puff');
+        w.events.emit('puff', this);
+      }
+    } else if (this.state === 'puff') {
+      if (this.stateT >= p.puff) {
+        this.setState('spitting');
+        this.shotsLeft = p.shots;
+        this.gapT = 0;
+      }
+    } else if (this.state === 'spitting') {
+      this.gapT -= dt;
+      if (this.gapT <= 0) {
+        const mx = this.cx + this.facing * 0.45;
+        const my = this.y + 0.42;
+        let vx = this.facing * p.speed;
+        let vy = 0;
+        if (p.aim) {
+          const tx = pl.cx - mx;
+          const ty = pl.y + pl.h * 0.5 - my;
+          const d = Math.hypot(tx, ty) || 1;
+          vx = (tx / d) * p.speed;
+          vy = (ty / d) * p.speed;
+        }
+        w.spawnEnemyShot({ x: mx, y: my, vx, vy, kind: 'seed', r: this.mode === 'kid' ? 0.32 : 0.24, life: 3.5 });
+        w.events.emit('spit', this);
+        this.shotsLeft--;
+        this.gapT = p.gap;
+        if (this.shotsLeft <= 0) this.setState('idle');
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------- chargers
+  charge(w, dt) {
+    const p = this.p;
+    const pl = w.player;
+    if (!p.charge) {
+      this.walk(w, dt);
+      return;
+    }
+    let speed = 0;
+    if (this.state === 'idle' || this.state === 'patrol') {
+      speed = p.speed;
+      const dx = pl.cx - this.cx;
+      const level = Math.abs(pl.feet - (this.y + this.h)) < 1.5;
+      if (level && Math.abs(dx) < p.range && pl.state === 'play') {
+        this.facing = dx < 0 ? -1 : 1;
+        this.setState('paw');
+        w.events.emit('paw', this);
+        speed = 0;
+      }
+    } else if (this.state === 'paw') {
+      if (this.stateT >= p.paw) this.setState('rush');
+    } else if (this.state === 'rush') {
+      speed = p.chargeSpeed;
+    } else if (this.state === 'dizzy') {
+      if (this.stateT >= p.dizzy) this.setState('idle');
+    }
+    this.vx = this.facing * speed;
+    this.fall(w, dt);
+    const hit = moveX(this, this.vx * dt, w.grid);
+    if (this.state === 'rush') {
+      if (hit === MOVE.WALL || (this.grounded && !this.groundAhead(w))) {
+        this.setState('dizzy');
+        w.events.emit('bonk', this);
+      }
+    } else if (hit === MOVE.WALL) this.turn();
+    else if (this.grounded && p.turnAtLedges && !this.groundAhead(w)) this.turn();
+  }
+
   // ---------------------------------------------------------------------------- fliers
   fly(w, dt) {
     const p = this.p;
@@ -183,7 +330,8 @@ export class Enemy {
       this.x += this.vx * dt;
       this.y += this.vy * dt;
       if (this.stateT > 0.9 || this.y + this.h > w.grid.h) this.setState('return');
-    } else if (this.state === 'return') {
+    } else {
+      // 'return' (also after a bubble or ice): back to the flight path
       const dx = pathX - this.x;
       const dy = pathY - this.y;
       const d = Math.hypot(dx, dy);
@@ -215,6 +363,39 @@ export class Enemy {
       this.setState(this.def.move === 'fly' ? 'return' : 'idle');
       this.grounded = false;
       w.events.emit('unbubble', this);
+    }
+  }
+
+  // ------------------------------------------------------------------------------- ice
+  // Returns false for things that can't be frozen (the mini-boss).
+  freeze(seconds) {
+    if (this.isBoss) return false;
+    this.frozen = seconds;
+    this.sliding = 0;
+    this.bubbled = 0;
+    this.vx = 0;
+    this.vy = 0;
+    this.setState('frozen');
+    return true;
+  }
+
+  kick(dir) {
+    this.sliding = dir;
+    this.frozen = Math.max(this.frozen, 2);
+  }
+
+  updateFrozen(w, dt) {
+    this.fall(w, dt);
+    if (this.sliding) {
+      const hit = moveX(this, this.sliding * KICK_SPEED * dt, w.grid);
+      if (hit === MOVE.WALL) w.cheer(this, 'shatter');
+      return;
+    }
+    this.frozen -= dt;
+    if (this.frozen <= 0) {
+      this.frozen = 0;
+      this.setState(this.def.move === 'fly' ? 'return' : 'idle');
+      w.events.emit('thaw', this);
     }
   }
 }

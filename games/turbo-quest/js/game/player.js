@@ -48,6 +48,11 @@ export class Player {
     this.shield = 0;
     this.giant = 0;
     this.turbo = 0;
+    this.zoom = 0;
+    this.magnet = 0;
+    this.airJumps = 0;
+    this.carryVx = 0; // speed kept from a moving platform jumped off
+    this.lastRaft = null;
     if (this.maxHearts) this.hearts = this.maxHearts;
   }
 
@@ -81,6 +86,10 @@ export class Player {
     return this.y + this.h;
   }
 
+  get cy() {
+    return this.y + this.h / 2;
+  }
+
   // w: the world: { grid, platforms, tune, derived, events, mode, autoGo }.
   // input: { mx (-1..1), my (-1..1, down is +), jump (held), jumpPressed (this step) }.
   update(input, w, dt) {
@@ -101,8 +110,14 @@ export class Player {
     const held = playing && input.jump;
     this.waiting = false;
     if (playing && w.autoGo) mx = this.autoGo(w);
-    // Looking straight up (Dad Mode aiming) stands still.
-    if (input.my < -0.5 && Math.abs(mx) < 0.3) mx = 0;
+    // Auto-Go jumping off a raft or log keeps pace with it instead of running ahead.
+    if (playing && w.autoGo && !this.grounded && this.carryVx) mx = 0;
+    // Aiming up (straight or diagonally, Dad Mode) plants his feet on the ground, so he can stand
+    // and shoot up at an angle; in the air it still steers.
+    if (input.my < -0.5 && (this.grounded || Math.abs(mx) < 0.3)) {
+      if (Math.abs(mx) >= 0.3) this.facing = mx > 0 ? 1 : -1;
+      mx = 0;
+    }
     // Kid smart jump: a jump from standing still at a gap carries him across.
     if (this.assistJump && !this.grounded && Math.abs(mx) < 0.1) mx = this.facing;
     if (this.hurtLock > 0) {
@@ -118,10 +133,12 @@ export class Player {
       const p = this.riding;
       moveX(this, p.dx, w.grid);
       this.y = p.y - this.h;
+      if (p.kind === 'raft') this.lastRaft = p;
     }
 
     // ---------------------------------------------------------------- running
-    const target = mx * t.runSpeed * (this.turbo > 0 ? 1.3 : 1);
+    const boost = (this.turbo > 0 ? 1.3 : 1) * (this.zoom > 0 ? 1.4 : 1);
+    const target = mx * t.runSpeed * boost + (this.grounded ? 0 : this.carryVx);
     let rate;
     if (this.hurtLock > 0) rate = 4;
     else if (mx === 0) rate = d.decel;
@@ -137,7 +154,9 @@ export class Player {
     if (this.grounded) {
       this.coyote = t.coyote;
       this.flutterLeft = t.flutterTime;
+      this.airJumps = w.abilities && w.abilities.doubleJump ? 1 : 0;
     } else if (this.coyote > 0) this.coyote = Math.max(0, this.coyote - dt);
+    const carry = this.riding ? this.riding.dx / dt : 0;
 
     if (this.buffer > 0 && this.coyote > 0) {
       const onOneWay = this.grounded && (this.ground === T.ONEWAY || this.riding);
@@ -149,9 +168,18 @@ export class Player {
         this.grounded = false;
         this.riding = null;
       } else {
-        this.jump(d, ev);
+        this.jump(d, ev, this.zoom > 0 ? 1.08 : 1);
+        this.carryVx = carry;
         if (w.mode === 'kid' && !w.autoGo && Math.abs(input.mx) < 0.1 && this.gapAhead(w)) this.assistJump = true;
       }
+    } else if (playing && input.jumpPressed && !this.grounded && this.coyote <= 0 && this.airJumps > 0) {
+      // Double jump (once Tiki Tumble is beaten): a second, smaller jump in the air.
+      this.airJumps--;
+      this.buffer = 0;
+      this.vy = -Math.sqrt(2 * t.riseGravity * (w.doubleJumpHeight || 2.5));
+      this.jumping = true;
+      this.flutterLeft = t.flutterTime;
+      ev.emit('doubleJump', { x: this.cx, y: this.feet });
     }
     // Letting go of jump early makes a lower jump.
     if (this.jumping && !held && this.vy < -d.cutVel) this.vy = -d.cutVel;
@@ -179,7 +207,7 @@ export class Player {
     else if (step === MOVE.STEPPED && this.vy > 0) this.vy = 0;
 
     const r = moveY(this, dy, w.grid, { dropThrough: this.dropTimer > 0, corner: t.corner }, this.out);
-    const platform = !r.landed && dy > 0 && this.dropTimer <= 0 ? this.landOnPlatform(w.platforms, prevBottom) : null;
+    const platform = !r.landed && dy > 0 && this.dropTimer <= 0 ? this.landOnPlatform(w.landables || w.platforms, prevBottom) : null;
     if (r.ceiling && this.vy < 0) {
       this.vy = 0;
       this.jumping = false;
@@ -195,6 +223,7 @@ export class Player {
         this.riding = platform;
         this.jumping = false;
         this.assistJump = false;
+        this.carryVx = 0;
       }
     } else {
       this.grounded = false;
@@ -206,8 +235,9 @@ export class Player {
     if (this.grounded && !this.riding && this.ground !== T.BOUNCE && fullySupported(this, w.grid)) {
       this.safeX = this.x;
       this.safeY = this.y;
+      this.lastRaft = null;
     }
-    if (this.y > w.grid.h + 0.5) {
+    if (this.y > w.grid.h + 0.5 || (w.inWater && w.inWater(this))) {
       if (w.fellInPit) w.fellInPit(this);
       else this.startRescue(w, this.safeX, this.safeY, w.tune.rescueTime, 'pit');
     }
@@ -226,8 +256,8 @@ export class Player {
     return false;
   }
 
-  jump(d, ev) {
-    this.vy = -d.jumpVel;
+  jump(d, ev, mul = 1) {
+    this.vy = -d.jumpVel * mul;
     this.jumping = true;
     this.grounded = false;
     this.coyote = 0;
@@ -237,6 +267,7 @@ export class Player {
   }
 
   bounce(d, ev) {
+    this.carryVx = 0;
     this.vy = -d.bounceVel;
     this.jumping = false;
     this.grounded = false;
@@ -263,6 +294,36 @@ export class Player {
   // Auto-Go (Kid Mode, one button): walk right by himself, but stop at a wall or a gap and wait
   // for a jump. A short step down (3 tiles or less) is just walked off.
   autoGo(w) {
+    // On a moving raft: stand still, and ask for a jump only when a rock is coming.
+    const raft = this.riding && this.riding.kind === 'raft' && !this.riding.done ? this.riding : null;
+    if (raft) {
+      const y0 = Math.floor(this.y + 0.05);
+      const y1 = Math.floor(this.y + this.h - 0.05);
+      for (let k = 0.2; k <= 0.95; k += 0.25) {
+        const col = Math.floor(this.x + this.w + k);
+        for (let cy = y0; cy <= y1; cy++) if (isSolid(tileAt(w.grid, col, cy))) this.waiting = true;
+      }
+      return 0;
+    }
+    // Standing on a river rock: step back onto the raft as it passes under; if it has already gone
+    // by, jump after it; if it hasn't come yet, just wait.
+    const lr = this.lastRaft;
+    if (lr && lr.started && !lr.done && this.grounded && !this.riding) {
+      if (lr.x <= this.x + this.w + 0.2 && lr.x + lr.w >= this.x + this.w + 0.4) return 1;
+      if (lr.x > this.x + this.w + 0.2) this.waiting = true;
+      return 0;
+    }
+    // A shockwave coming: wait (the hint says jump!).
+    if (w.waveNear && w.waveNear(this)) this.waiting = true;
+    // Near the boss or a mini-boss: keep a few tiles away and let the Pop-Pack do the work.
+    const foe = w.bigFoe && w.bigFoe(this);
+    if (foe) {
+      if (!this.grounded) return 0;
+      const gap = foe.cx - this.cx;
+      if (Math.abs(gap) > 4.5) return Math.sign(gap);
+      if (Math.abs(gap) < 3) return -Math.sign(gap) || -1;
+      return 0;
+    }
     if (!this.grounded) return 1;
     const grid = w.grid;
     const stop = (this.vx * this.vx) / (2 * w.derived.decel);
@@ -277,16 +338,24 @@ export class Player {
     }
     const feet = Math.floor(this.y + this.h + 0.02);
     for (let cy = feet; cy <= feet + 3; cy++) if (isStandable(tileAt(grid, col, cy))) return 1;
+    // A raft, log or ice block there counts as ground too.
+    for (const p of w.landables || w.platforms) {
+      if (p === this.riding && p.kind !== 'raft') continue;
+      if (col + 0.5 >= p.x && col + 0.5 <= p.x + p.w && p.y >= this.feet - 0.1 && p.y <= this.feet + 3) return 1;
+    }
     this.waiting = true;
     return 0;
   }
 
   // Float in a bubble to (tx, ty). kind: 'pit' (back to safe ground) or 'faint' (out of hearts,
   // back to the checkpoint).
-  startRescue(w, tx, ty, dur, kind = 'pit') {
+  // follow: a raft to float back onto (it keeps moving, so the bubble follows it).
+  startRescue(w, tx, ty, dur, kind = 'pit', follow = null) {
     this.state = 'rescue';
     this.stateTime = 0;
-    this.rescue = { fx: this.x, fy: Math.min(this.y, w.grid.h - 0.5), tx, ty, t: 0, dur, kind };
+    this.rescue = { fx: this.x, fy: Math.min(this.y, w.grid.h - 0.5), tx, ty, t: 0, dur, kind, follow };
+    this.carryVx = 0;
+    this.airJumps = 0;
     this.hurtLock = 0;
     this.assistJump = false;
     this.vx = 0;
@@ -302,6 +371,10 @@ export class Player {
   updateRescue(w, dt) {
     const r = this.rescue;
     r.t += dt;
+    if (r.follow) {
+      r.tx = r.follow.x + r.follow.w / 2 - this.w / 2;
+      r.ty = r.follow.y - this.h;
+    }
     const k = smoothstep(Math.min(1, r.t / r.dur));
     this.x = lerp(r.fx, r.tx, k);
     this.y = lerp(r.fy, r.ty, k) - Math.sin(k * Math.PI) * 1.5;

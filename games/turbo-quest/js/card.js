@@ -2,7 +2,7 @@
 //   ?card=1024  the Kid Games home screen card (Turbo leaping through stars, a Grumbly cheered
 //               into a balloon, the jungle behind)
 //   ?icon=512   the app icon
-// and the level-card pictures for the level screen (paintScene). The page sets
+// and paintScene (the card's scene). The page sets
 // body[data-ready] when done, so a script can save the canvas.
 import { withTileSize } from './engine/sprites.js';
 import { drawTurbo, neutralPose } from './art/turbo.js';

@@ -12,7 +12,7 @@ import { STAR_STEPS } from '../content/sfx.js';
 
 const HOLD_FOR_SETTINGS = 2; // seconds holding pause to open the grown-up settings
 const IDLE_HINT = 8; // Kid Mode: seconds without progress before a gentle hint
-const WEAPON_WORDS = { bubble: 'Bubble blaster!', spread: 'Star spread!' };
+const WEAPON_WORDS = { bubble: 'Bubble blaster!', spread: 'Star spread!', boing: 'Boing balls!', frost: 'Frosty ray!', rockets: 'Fizz rockets!' };
 
 export class PlayScene {
   // opts: { resume } (a saved checkpoint to start from)
@@ -27,14 +27,18 @@ export class PlayScene {
   build(resume = this.opts.resume) {
     const a = this.app;
     const s = a.settings;
+    const prof = a.store ? a.store.profile() : null;
     this.world = new World(this.def, {
       mode: s.mode, tune: a.tuneFor(s.mode), autoGo: s.autoGo, resume,
       settings: { autoFire: !!s.autoFire, aimAssist: s.aimAssist !== false },
+      abilities: { doubleJump: !!(prof && prof.abilities.includes('doubleJump')) },
+      treats: prof ? prof.treats : [],
     });
     this.cam = new Camera(VIEW_TILES);
     this.cam.setAspect(a.w / a.h);
     this.cam.snap(this.world.player, this.world.level, this.world.tune.lookAhead);
     this.pview = new PlayerView();
+    this.pview.look = prof ? prof.look : null;
     this.particles.clear();
     this.time = 0;
     this.pauseHeld = 0;
@@ -46,7 +50,7 @@ export class PlayScene {
     this.idle = 0;
     this.idleHint = false;
     this.hook();
-    music.play(this.world.level.music || 'jungle');
+    music.play(this.world.level.music === 'boss' ? 'jungle' : this.world.level.music || 'jungle');
   }
 
   // Settings or tuning changed while playing: keep playing with the new ones.
@@ -196,6 +200,91 @@ export class PlayScene {
       P.burst('confetti', cp.x + 0.6, cp.y - 0.4, 12, { speed: 5, life: 0.8, g: 6, drag: 2 });
       a.saveResume?.(this.world.resumeData());
     });
+    ev.on('spit', () => play('spit'));
+    ev.on('puff', () => play('puff', { vol: 0.6 }));
+    ev.on('blocked', (e) => {
+      play('clang');
+      P.burst('sparkle', e.x, e.y, 4, { speed: 3, life: 0.25, drag: 5, size: 0.8 });
+    });
+    ev.on('shieldBreak', (e) => {
+      play('clang', { pitch: 0.7 });
+      P.burst('confetti', e.cx, e.cy, 10, { speed: 5, life: 0.7, g: 8, drag: 2 });
+    });
+    ev.on('freeze', (e) => {
+      play('freeze');
+      P.burst('sparkle', e.cx, e.cy, 10, { speed: 4, life: 0.5, drag: 3 });
+    });
+    ev.on('thaw', () => play('thaw'));
+    ev.on('kick', (e) => {
+      play('kick');
+      P.burst('sparkle', e.cx, e.y + e.h, 6, { speed: 3, life: 0.4, drag: 4 });
+    });
+    ev.on('blast', (e) => {
+      play('blast');
+      P.burst('confetti', e.x, e.y, 24, { speed: 7, life: 0.9, g: 6, drag: 2 });
+      P.burst('puff', e.x, e.y, 5, { speed: 2, life: 0.4, drag: 4, size: 1.3 });
+      cam.shake(0.15);
+    });
+    ev.on('boing', () => play('boing', { vol: 0.35, pitch: 1.5 }));
+    ev.on('popShot', (e) => {
+      play('pop');
+      P.burst('sparkle', e.x, e.y, 5, { speed: 3, life: 0.3, drag: 4 });
+    });
+    ev.on('paw', (e) => {
+      play('paw');
+      P.burst('dust', e.cx - e.facing * 0.5, e.y + e.h, 4, { speed: 2, spread: 1, angle: -Math.PI / 2 - e.facing * 0.6, life: 0.4, drag: 4 });
+    });
+    ev.on('slam', (e) => {
+      play('thump', { pitch: e.big ? 0.8 : 1 });
+      cam.shake(e.big ? 0.45 : 0.28);
+      P.burst('dust', e.x, e.y, 12, { speed: 5, spread: Math.PI * 0.6, angle: -Math.PI / 2, life: 0.6, drag: 3, size: 1.3 });
+    });
+    ev.on('bossWake', () => {
+      play('bossWake');
+      cam.shake(0.3);
+      music.play('boss');
+    });
+    ev.on('bossHop', () => play('boing', { pitch: 0.6 }));
+    ev.on('bossHit', (e) => {
+      this.freeze = 6;
+      play('bossHit');
+      cam.shake(0.35);
+      P.burst('confetti', e.x, e.y, 30, { speed: 8, life: 1.2, g: 7, drag: 1.5 });
+      P.burst('puff', e.x, e.y, 6, { speed: 3, life: 0.5, drag: 4, size: 1.5 });
+    });
+    ev.on('bossDefeated', (b) => {
+      play('win');
+      music.play('jungle');
+      P.burst('confetti', b.cx, b.y, 40, { speed: 10, life: 2, g: 7, drag: 1.2 });
+      kidSay('You did it!');
+    });
+    ev.on('goalAppear', () => play('goal'));
+    ev.on('arena', () => (cam.lock = this.world.arena));
+    ev.on('raft', () => play('raft'));
+    ev.on('splash', (e) => {
+      play('splash');
+      P.burst('sparkle', e.x, e.y, 14, { speed: 6, spread: 1.4, angle: -Math.PI / 2, life: 0.6, g: 10, drag: 1 });
+    });
+    ev.on('treat', (e) => {
+      play('heart');
+      P.burst('heart', e.x, e.y, 10, { speed: 4, life: 0.9, g: -2, drag: 2 });
+      kidSay('Yummy!');
+    });
+    ev.on('zoom', () => {
+      play('powerup', { pitch: 1.15 });
+      kidSay('Zoom boots!');
+    });
+    ev.on('magnet', () => {
+      play('powerup', { pitch: 0.95 });
+      kidSay('Star magnet!');
+    });
+    ev.on('zoomEnd', () => play('shrink', { vol: 0.5 }));
+    ev.on('magnetEnd', () => play('shrink', { vol: 0.5 }));
+    ev.on('doubleJump', (e) => {
+      play('jump', { pitch: 1.35 });
+      v.jump();
+      P.burst('puff', e.x, e.y, 4, { speed: 2, spread: 2, angle: Math.PI / 2, life: 0.35, drag: 4, size: 0.8 });
+    });
     ev.on('win', (e) => {
       play('win');
       music.stop();
@@ -231,6 +320,8 @@ export class PlayScene {
       }
     } else this.flutterSound = 0;
     if (p.turbo > 0 && Math.random() < 0.6) this.particles.burst('rainbow', p.cx - p.facing * 0.4, p.y + 0.4 + Math.random() * 0.6, 1, { speed: 0.5, life: 0.5, drag: 2 });
+    if (p.zoom > 0 && Math.abs(p.vx) > 3 && Math.random() < 0.5) this.particles.burst('sparkle', p.cx - p.facing * 0.5, p.y + 0.3 + Math.random() * 0.8, 1, { speed: 0.3, life: 0.35, drag: 2 });
+    this.cam.lock = w.inArena && w.boss && w.boss.alive ? w.arena : null;
     this.updateHint(dt);
     if (this.winTimer >= 0) {
       this.winTimer += dt;

@@ -7,11 +7,15 @@
 //   kid:  { 12: '.....~~~.....' },   // planks bridge the gap in Kid Mode
 //   dad:  { 11: '..........h..' },   // an extra Hopper in Dad Mode
 // params: per-glyph settings for that section, e.g. { m: { w: 3, range: 4 }, w: { speed: 2 } }.
+// arena: true marks a boss arena (the camera stays inside it while the boss is about).
+// checkpoint: false for a section with nowhere to stand at its start (a river).
+// A level can set goalAfter: 'miniboss' (the goal opens once the mini-boss is cheered).
 import { T, makeGrid, setTile, tileAt, isStandable } from '../engine/collide.js';
 import { TILE_GLYPHS, ENEMY_GLYPHS, PICKUP_GLYPHS, DECOR_GLYPHS, MARKERS } from '../content/legend.js';
 import { PLAYER_H, PLAYER_W } from './player.js';
 
 const PLATFORM = { w: 3, range: 4, axis: 'x', speed: 2 };
+const RAFT = { w: 4, range: 40, speed: 2.4 };
 
 // The rows of a section as seen in one mode (its overlay applied).
 export function sectionRows(s, mode) {
@@ -34,8 +38,9 @@ export function parseLevel(def, mode = 'kid') {
   const grid = makeGrid(width, height);
   const level = {
     id: def.id, name: def.name || def.id, world: def.world || 'jungle', music: def.music || null, par: def.par || 120,
-    medals: def.medals || null, width, height, grid, mode,
+    medals: def.medals || null, goalAfter: def.goalAfter || null, width, height, grid, mode,
     start: null, goal: null, stars: [], items: [], enemies: [], decor: [], platforms: [], checkpoints: [], sections: [],
+    boss: null, arena: null,
   };
 
   let ox = 0;
@@ -58,15 +63,27 @@ export function parseLevel(def, mode = 'kid') {
           level.enemies.push({ kind: ENEMY_GLYPHS[ch], x: x + 0.5, y: y + 1, id: `${ch}${x},${y}`, params: params[ch] || null, section: si });
         } else if (DECOR_GLYPHS[ch]) {
           level.decor.push({ kind: DECOR_GLYPHS[ch], x: x + 0.5, y: y + 1, seed: x * 7 + y * 13 });
-        } else if (ch === 'S') level.start = { x: x + 0.5 - PLAYER_W / 2, y: y + 1 - PLAYER_H };
-        else if (ch === '>') level.goal = { x, y: y + 1 };
+        } else if (ch === 'S') {
+          if (level.start) throw new Error(`level ${def.id}: a second start (S) (${where})`);
+          level.start = { x: x + 0.5 - PLAYER_W / 2, y: y + 1 - PLAYER_H };
+        } else if (ch === '>') {
+          if (level.goal) throw new Error(`level ${def.id}: a second goal (>) (${where})`);
+          level.goal = { x, y: y + 1 };
+        }
         else if (ch === 'm') {
           const p = { ...PLATFORM, ...(params.m || {}) };
           level.platforms.push({ x0: x, y0: y, x, y, w: p.w, h: 0.5, axis: p.axis, range: p.range, speed: p.speed, phase: 0, dx: 0, dy: 0 });
-        } else if (!MARKERS.has(ch)) throw new Error(`level ${def.id}: unknown glyph '${ch}' (${where})`);
+        } else if (ch === 'n') {
+          // A raft sits on the river's surface row (its top level with the bank), so the cell is water.
+          setTile(grid, x, y, T.WATER);
+          const p = { ...RAFT, ...(params.n || {}) };
+          level.platforms.push({ kind: 'raft', x0: x, y0: y, x, y, w: p.w, h: 0.5, axis: 'x', range: p.range, speed: p.speed, phase: 0, dx: 0, dy: 0, started: false, done: false });
+        } else if (ch === 'Z') level.boss = { x: x + 0.5, y: y + 1, section: si };
+        else if (!MARKERS.has(ch)) throw new Error(`level ${def.id}: unknown glyph '${ch}' (${where})`);
       }
     });
     level.sections.push({ x0: ox, x1: ox + widths[si], name: s.name || `section ${si}` });
+    if (s.arena) level.arena = { x0: ox, x1: ox + widths[si], section: si };
     ox += widths[si];
   });
   if (!level.start) throw new Error(`level ${def.id}: no start (S)`);
@@ -76,7 +93,8 @@ export function parseLevel(def, mode = 'kid') {
   level.checkpoints.push({ x: level.start.x, y: level.start.y, section: 0 });
   for (let si = 1; si < level.sections.length; si++) {
     const { x0, x1 } = level.sections[si];
-    for (let cx = x0 + 1; cx < Math.min(x1, x0 + 8); cx++) {
+    if (sections[si].checkpoint === false) continue;
+    for (let cx = x0 + 1; cx < Math.min(x1, x0 + 12); cx++) {
       const top = surfaceTop(grid, cx);
       if (top !== null) {
         level.checkpoints.push({ x: cx + 0.5 - PLAYER_W / 2, y: top - PLAYER_H, section: si });
@@ -104,6 +122,17 @@ export function surfaceTop(grid, cx) {
 
 // Moving platforms swing smoothly back and forth: top speed `speed`, `range` tiles end to end.
 export function movePlatform(p, dt) {
+  if (p.kind === 'raft') {
+    // A raft waits for Turbo, then floats downriver once and stays at the far bank.
+    p.dx = 0;
+    p.dy = 0;
+    if (!p.started || p.done) return;
+    const nx = Math.min(p.x0 + p.range, p.x + p.speed * dt);
+    p.dx = nx - p.x;
+    p.x = nx;
+    if (nx >= p.x0 + p.range) p.done = true;
+    return;
+  }
   const omega = (2 * p.speed) / Math.max(0.1, p.range);
   p.phase += omega * dt;
   const off = ((1 - Math.cos(p.phase)) / 2) * p.range;

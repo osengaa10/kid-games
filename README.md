@@ -13,7 +13,7 @@ The app is made with [Capacitor](https://capacitorjs.com). Everything is in this
 
 The first three games used to be separate repos (github.com/osengaa10/lawn-mower and so on). Their history came along when they moved here, so `git log -- games/lawn-mower` still shows every change.
 
-Inside the app, each game's title screen (Gadget Glam's home screen, Turbo Quest's pause menu, Critter Clinic's waiting room) shows an extra round button with four colored tiles. It goes back to the game list. The button only shows up in the app, not on the web.
+Inside the app, each game's title screen (Gadget Glam's home screen, Turbo Quest's map and pause menu, Critter Clinic's waiting room) shows an extra round button with four colored tiles. It goes back to the game list. The button only shows up in the app, not on the web.
 
 ## Everyday commands
 

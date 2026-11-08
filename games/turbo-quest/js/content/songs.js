@@ -27,7 +27,16 @@ const JUNGLE_B = [
   { chord: [0, 0], lead: [12, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _], drums: 'fill' },
 ];
 
+// The boss: the same tune's minor cousin, faster, with a driving fill.
+const BOSS = [
+  { chord: [-3, 1], lead: [9, _, 12, _, 9, _, 7, _, 9, _, _, _, 4, _, 7, _] },
+  { chord: [-3, 1], lead: [9, _, 12, _, 14, _, 12, _, 9, _, _, _, _, _, _, _], drums: 'fill' },
+  { chord: [5, 0], lead: [12, _, 14, _, 12, _, 9, _, 12, _, _, _, 9, _, 5, _] },
+  { chord: [7, 0], lead: [11, _, 14, _, 11, _, 7, _, 11, _, _, _, 14, _, 11, _], drums: 'fill' },
+];
+
 export const SONGS = {
+  boss: { bpm: 138, sections: { A: BOSS }, order: ['A'], lead: 'marimba', drums: 'calypso' },
   // World 1: a bouncy calypso with a marimba lead.
   jungle: { bpm: 112, sections: { A: JUNGLE_A, B: JUNGLE_B }, order: ['A', 'B', 'A', 'B'], lead: 'marimba', drums: 'calypso' },
   // The title and menus: the same tune, slower and softer, no kick drum.

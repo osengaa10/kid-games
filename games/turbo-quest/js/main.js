@@ -21,7 +21,9 @@ import { quality, stepDown, qualityForced, FrameWatch } from './render/quality.j
 import { PlayScene } from './scenes/play.js';
 import { PauseScene } from './scenes/pause.js';
 import { TitleScene } from './scenes/title.js';
-import { LevelsScene } from './scenes/levels.js';
+import { MapScene } from './scenes/map.js';
+import { ClosetScene } from './scenes/closet.js';
+import { StickersScene } from './scenes/stickers.js';
 import { ResultsScene } from './scenes/results.js';
 import { StressScene } from './scenes/stress.js';
 import { openSettings } from './dev/settings.js';
@@ -134,7 +136,7 @@ function boot() {
       this.syncSettings();
       this.relayout();
       const play = this.playScene;
-      if (play && playerChanged && before.profile !== this.settings.profile) this.showLevels();
+      if (play && playerChanged && before.profile !== this.settings.profile) this.showMap();
       else if (play && play.world.mode !== this.settings.mode) {
         // A new mode starts from the last checkpoint (not mid-jump).
         play.build(play.world.resumeData());
@@ -174,13 +176,19 @@ function boot() {
     showTitle() {
       this.setScene(new TitleScene(this));
     },
-    showLevels() {
-      this.setScene(new LevelsScene(this));
+    showMap() {
+      this.setScene(new MapScene(this));
+    },
+    showCloset() {
+      this.setScene(new ClosetScene(this));
+    },
+    showStickers() {
+      this.setScene(new StickersScene(this));
     },
     chooseProfile(id) {
       store.choose(id);
       this.applySettings(true);
-      this.showLevels();
+      this.showMap();
     },
     startLevel(id, resume = null) {
       this.setScene(new PlayScene(this, LEVELS[id] || LEVELS['w1-1'], { resume }));
@@ -282,6 +290,7 @@ function boot() {
       updateDebug(app, stats);
     }
     app.top.render();
+    app.top.overlay?.();
     // Slow for a while: drop the quality one step (and remember it).
     if (watch.add(elapsed) && !qualityForced() && app.top.allowQualityStep !== false && stepDown()) {
       resize();

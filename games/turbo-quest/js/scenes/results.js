@@ -1,12 +1,22 @@
 // After the goal, over the frozen level. Saved first (best results, gems, stars, stickers).
 // Kid Mode: a celebration with no score: stars counting up, gem slots popping in, and a sticker
 // for each kind of Grumbly cheered for the first time. Dad Mode: the tally (score, time against
-// par, gems, no-hit, best chain) and the medal. Buttons: ↻ play again, ▶ the level cards.
+// par, gems, best chain, badges) and the medal. Beating a boss adds a ribbon for the new ability
+// (double jump). Buttons: ↻ play again, ▶ the map.
 import { MenuScene } from './menu.js';
 import { play } from '../engine/audio.js';
 import { music } from '../engine/music.js';
 import { say } from '../engine/speech.js';
-import { drawGrumbly } from '../art/grumblies.js';
+import { drawSticker } from '../art/grumblies.js';
+import { withTileSize } from '../engine/sprites.js';
+
+// The Dad Mode badges, in order, with their pictures.
+const BADGES = [
+  { id: 'noHit', icon: 'heart' },
+  { id: 'allGems', icon: 'gem' },
+  { id: 'underPar', icon: 'clock' },
+  { id: 'pawsOnly', icon: 'paw' },
+];
 
 export class ResultsScene extends MenuScene {
   constructor(app, below, res) {
@@ -22,7 +32,7 @@ export class ResultsScene extends MenuScene {
   enter() {
     super.enter();
     music.play('title');
-    if (this.res.mode === 'kid') say('Hooray! You did it!', { force: true });
+    if (this.res.mode === 'kid') say(this.saved.newAbility ? 'Hooray! Now you can double jump!' : 'Hooray! You did it!', { force: true });
   }
 
   buttons() {
@@ -38,7 +48,7 @@ export class ResultsScene extends MenuScene {
     const a = this.app;
     play('select');
     if (id === 'again') a.startLevel(this.res.level, null);
-    else a.showLevels();
+    else a.showMap();
   }
 
   update(dt) {
@@ -67,6 +77,7 @@ export class ResultsScene extends MenuScene {
     ui.panel(px, py, pw, ph, 34);
     if (this.res.mode === 'kid') this.drawKid(ui, px, py, pw, ph);
     else this.drawDad(ui, px, py, pw, ph);
+    if (this.saved.newAbility) this.drawAbility(ui, w / 2, py, Math.min(pw * 0.7, 420));
     this.drawButtons(ui);
     if (a.settings.debug) ui.debug(a.debugLines);
   }
@@ -80,7 +91,7 @@ export class ResultsScene extends MenuScene {
     ui.text(String(Math.floor(this.shown)), cx + s * 0.6, py + ph * 0.21, s * 1.5, '#ffb000');
     // gem slots, popping in one at a time
     const gy = py + ph * 0.48;
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < this.res.gemCount; i++) {
       const t = this.time - 1.2 - i * 0.35;
       const got = this.res.gems[i];
       const k = got ? Math.max(0, Math.min(1, t * 4)) : 1;
@@ -109,7 +120,7 @@ export class ResultsScene extends MenuScene {
         g.translate(0, ph * 0.08);
         g.scale(k, k);
         const ppt = ph * 0.13;
-        drawGrumbly(g, ppt, { kind, mood: 'happy', squash: 1, step: 0, wing: this.time * 20 }, (c, x2, y2, w2, h2) => g.drawImage(c, x2, y2, w2, h2));
+        withTileSize(ppt, () => drawSticker(g, ppt, kind, true, this.time * 20));
         g.restore();
       });
     }
@@ -132,9 +143,48 @@ export class ResultsScene extends MenuScene {
     line(1, '◆ Gems', `${r.gems.filter(Boolean).length} / ${r.gemCount}`);
     line(2, '⏱ Time', `${fmt(t)}  (par ${fmt(r.par)})`, t <= r.par ? '#1f9d4c' : ink);
     line(3, '× Best chain', `×${Math.min(10, r.bestChain)}   ${r.cheers} cheers`);
-    line(4, '♥ No-hit', r.noHit ? '+2,000' : '—', r.noHit ? '#1f9d4c' : ink);
+    // badges: lit if earned (now or before), a gold ring on the ones new this time
+    ui.text('Badges', L, row(4), ph * 0.06, ink, 'left', 700);
+    const got = this.saved.badges || [];
+    BADGES.forEach((b, i) => {
+      const x = R - (BADGES.length - 1 - i) * ph * 0.11 - ph * 0.04;
+      ui.badge(x, row(4), ph * 0.045, b.icon, got.includes(b.id), this.saved.newBadges.includes(b.id));
+    });
     ui.text(r.score.toLocaleString('en-US'), cx, row(5.4), ph * 0.13, '#ff8a2a');
     if (r.medal) ui.medal(cx + pw * 0.33, row(5.4), ph * 0.07, r.medal);
     if (this.saved.newBest) ui.text('NEW BEST', cx - pw * 0.33, row(5.4), ph * 0.05, '#1f9d4c');
+  }
+
+  // A gold ribbon across the top of the panel: Turbo's new move.
+  drawAbility(ui, x, y, w) {
+    const g = ui.g;
+    const k = Math.min(1, Math.max(0, (this.time - 0.6) * 3));
+    if (k <= 0) return;
+    const h = 64;
+    g.save();
+    g.translate(x, y);
+    g.scale(k, k);
+    g.fillStyle = '#e8a400';
+    for (const s of [-1, 1]) {
+      g.beginPath();
+      g.moveTo(s * w * 0.5, -h * 0.3);
+      g.lineTo(s * (w * 0.5 + 40), -h * 0.3);
+      g.lineTo(s * (w * 0.5 + 24), h * 0.1);
+      g.lineTo(s * (w * 0.5 + 40), h * 0.5);
+      g.lineTo(s * w * 0.5, h * 0.5);
+      g.fill();
+    }
+    g.beginPath();
+    g.roundRect ? g.roundRect(-w / 2, -h / 2, w, h, 14) : g.rect(-w / 2, -h / 2, w, h);
+    g.fillStyle = '#ffd23a';
+    g.fill();
+    g.lineWidth = 4;
+    g.strokeStyle = '#b5860a';
+    g.stroke();
+    g.restore();
+    if (k < 1) return;
+    const dad = this.res.mode === 'dad';
+    ui.iconAt('jump2', dad ? x - w * 0.36 : x, y, 32, '#ffffff', '#b5860a');
+    if (dad) ui.text('DOUBLE JUMP!', x + w * 0.07, y + 2, 30, '#ffffff');
   }
 }
