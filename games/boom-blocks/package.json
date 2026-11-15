@@ -1,0 +1,11 @@
+{
+  "name": "boom-blocks",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Boom Blocks: a toy-block destruction playground for little kids",
+  "type": "module",
+  "scripts": {
+    "start": "python3 -m http.server 8892",
+    "test": "node --test"
+  }
+}

@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <title>Boom Blocks</title>
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Boom Blocks" />
+    <meta name="theme-color" content="#3fa9ff" />
+    <meta name="format-detection" content="telephone=no" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="icons/icon-180.png" />
+    <link rel="icon" type="image/png" href="icons/icon-192.png" />
+    <link rel="stylesheet" href="style.css" />
+    <style>
+      /* The loading screen, inline so it's on screen the moment the page opens (the iPad keeps
+         showing the game list until this page has drawn something). */
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #3fa9ff;
+      }
+      #loader {
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4vmin;
+        background: radial-gradient(circle at 50% 35%, #8fd8ff, #3fa9ff 70%);
+        font-family: ui-rounded, 'SF Pro Rounded', 'Arial Rounded MT Bold', system-ui, sans-serif;
+        transition: opacity 0.5s;
+      }
+      .ready #loader {
+        opacity: 0;
+        pointer-events: none;
+      }
+      .failed #loader {
+        display: none;
+      }
+      #loader .pic {
+        width: min(42vmin, 300px);
+        height: min(42vmin, 300px);
+        border: 8px solid #fff;
+        border-radius: 32px;
+        box-shadow: 0 12px 0 rgba(10, 40, 80, 0.25);
+        animation: bb-bob 1.6s ease-in-out infinite;
+      }
+      #loader .title {
+        font-size: min(9vmin, 64px);
+        font-weight: 900;
+        letter-spacing: 0.04em;
+        -webkit-text-stroke: 3px #163a63;
+        paint-order: stroke fill;
+        text-shadow: 0 5px 0 rgba(10, 40, 80, 0.3);
+      }
+      #loader .title span {
+        display: inline-block;
+        animation: bb-wave 1.2s ease-in-out infinite;
+      }
+      #loader .bar {
+        display: flex;
+        gap: 1.6vmin;
+      }
+      #loader .bar i {
+        width: min(7vmin, 52px);
+        height: min(7vmin, 52px);
+        border-radius: 10px;
+        border: 4px dashed rgba(255, 255, 255, 0.7);
+        box-sizing: border-box;
+        transition: transform 0.25s cubic-bezier(0.3, 1.8, 0.6, 1), background 0.1s;
+      }
+      #loader .bar i.on {
+        border: 4px solid #fff;
+        background: var(--c);
+        box-shadow: inset -5px -5px 0 rgba(0, 0, 0, 0.15);
+        transform: scale(1.15) rotate(-6deg);
+        animation: bb-hop 0.8s ease-in-out infinite;
+      }
+      @keyframes bb-bob {
+        0%,
+        100% {
+          transform: translateY(0) rotate(-2deg);
+        }
+        50% {
+          transform: translateY(-12px) rotate(2deg);
+        }
+      }
+      @keyframes bb-wave {
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-8px);
+        }
+      }
+      @keyframes bb-hop {
+        0%,
+        100% {
+          transform: scale(1.15) translateY(0);
+        }
+        50% {
+          transform: scale(1.15) translateY(-10px);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <div id="hud"></div>
+    <pre id="stats"></pre>
+    <!-- The loading screen: the game's picture, its name, and a row of slots that fill with
+         blocks as the game gets ready. -->
+    <div id="loader" aria-hidden="true">
+      <img class="pic" src="icons/icon-512.png" alt="" />
+      <div class="title"><span style="color: #ff4d4d; animation-delay: 0.00s">B</span><span style="color: #ff9f1c; animation-delay: 0.08s">O</span><span style="color: #ffd23f; animation-delay: 0.16s">O</span><span style="color: #5fd35f; animation-delay: 0.24s">M</span>&nbsp;<span style="color: #2ec4f1; animation-delay: 0.40s">B</span><span style="color: #5b6cff; animation-delay: 0.48s">L</span><span style="color: #b15cff; animation-delay: 0.56s">O</span><span style="color: #ff5fa2; animation-delay: 0.64s">C</span><span style="color: #ff4d4d; animation-delay: 0.72s">K</span><span style="color: #ffd23f; animation-delay: 0.80s">S</span></div>
+      <div class="bar"><i style="--c: #ff4d4d"></i><i style="--c: #ff9f1c"></i><i style="--c: #ffd23f"></i><i style="--c: #5fd35f"></i><i style="--c: #2ec4f1"></i><i style="--c: #b15cff"></i></div>
+    </div>
+    <!-- If the iPad drops the 3D view (rare): one big button to start again. -->
+    <button id="again" aria-label="Start again" onclick="location.reload()">
+      <svg viewBox="0 0 64 64"><path d="M51 33a19 19 0 1 1-6.5-14.3" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" /><path d="M48 7l2 15-14-1z" fill="#fff" /></svg>
+    </button>
+    <script>
+      // Fill the loading slots up to step n (0..6).
+      window.bbProgress = (n) => {
+        document.querySelectorAll('#loader .bar i').forEach((el, i) => el.classList.toggle('on', i < n));
+      };
+      // Start the game only once the loading screen is on screen: the game's start-up (the
+      // physics engine, the shaders) keeps the iPad busy, and if that happened first the game
+      // list would just sit there looking frozen.
+      (function start() {
+        const pic = document.querySelector('#loader .pic');
+        const shown = new Promise((resolve) => {
+          if (pic.complete) resolve();
+          pic.onload = pic.onerror = resolve;
+          setTimeout(resolve, 500);
+        });
+        shown.then(() =>
+          requestAnimationFrame(() =>
+            requestAnimationFrame(() => {
+              window.bbProgress(1);
+              setTimeout(() => import('./js/main.js').catch((e) => {
+                console.error(e);
+                document.body.classList.add('failed');
+              }), 30);
+            }),
+          ),
+        );
+      })();
+    </script>
+  </body>
+</html>

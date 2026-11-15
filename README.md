@@ -1,11 +1,11 @@
 # Kid Games
 
-Mighty Mower, Coaster Doodle, Monster Truck, Gadget Glam, Turbo Quest and Critter Clinic in one iPad app. It has no ads, no sign-up, and needs no internet.
+Mighty Mower, Coaster Doodle, Monster Truck, Gadget Glam, Turbo Quest, Critter Clinic and Boom Blocks in one iPad app. It has no ads, no sign-up, and needs no internet.
 
 The app is made with [Capacitor](https://capacitorjs.com). Everything is in this repo:
 
-- `games/`: one folder per game: `lawn-mower` (Mighty Mower), `roller-coaster` (Coaster Doodle), `monster-truck`, `gadget-glam`, `turbo-quest` (a platformer, in progress) and `critter-clinic` (a doctor's check-up). Each is a complete web game on its own, with its own README, tests and `npm start`. **This is where you change a game.**
-- `launcher/`: the app's home screen, six big picture buttons.
+- `games/`: one folder per game: `lawn-mower` (Mighty Mower), `roller-coaster` (Coaster Doodle), `monster-truck`, `gadget-glam`, `turbo-quest` (a platformer, in progress), `critter-clinic` (a doctor's check-up) and `boom-blocks` (a toy-block destruction playground). Each is a complete web game on its own, with its own README, tests and `npm start`. **This is where you change a game.**
+- `launcher/`: the app's home screen, seven big picture buttons.
 - `scripts/sync-games.mjs`: copies the launcher and every game in `games/` into `www/`, leaving out tests and other files the app doesn't need. Capacitor bundles `www/` into the app.
 - `ios/`: the Xcode project.
 
@@ -13,7 +13,7 @@ The app is made with [Capacitor](https://capacitorjs.com). Everything is in this
 
 The first three games used to be separate repos (github.com/osengaa10/lawn-mower and so on). Their history came along when they moved here, so `git log -- games/lawn-mower` still shows every change.
 
-Inside the app, each game's title screen (Gadget Glam's home screen, Turbo Quest's map and pause menu, Critter Clinic's waiting room) shows an extra round button with four colored tiles. It goes back to the game list. The button only shows up in the app, not on the web.
+Inside the app, each game's title screen (Gadget Glam's home screen, Turbo Quest's map and pause menu, Critter Clinic's waiting room, Boom Blocks' top-left corner) shows an extra round button with four colored tiles. It goes back to the game list. The button only shows up in the app, not on the web.
 
 ## Everyday commands
 
@@ -190,11 +190,12 @@ The home screen (`launcher/index.html`) follows the mockup in `assets/cards/laun
 | Gadget Glam | The glue gun squeezing puffy hearts onto a rainbow kitty phone case with a unicorn sticker |
 | Turbo Quest | Turbo leaping over the first gap of Banana Bounce, a trail of stars ahead and sparkles from the ones he just grabbed |
 | Critter Clinic | The stethoscope on Biscuit the puppy's chest, the heart beating on the monitor and little hearts floating up |
+| Boom Blocks | The rainbow tower toppling after three meteors, dust and blocks flying from its base |
 
-They were taken in a desktop browser at iPad size (1180×820 points, 2× pixels; 3× for Turbo Quest, whose pup is small on screen, and for Critter Clinic, cropped close), with the game's buttons hidden or cropped out. A few used a closer camera than the game normally has: Mighty Mower zoomed in on the mower, and Monster Truck watching from in front and to the side. The square crops, 1024 px, are in `assets/cards/`. The app uses 768 px JPEGs of them in `launcher/images/`:
+They were taken in a desktop browser at iPad size (1180×820 points, 2× pixels; 3× for Turbo Quest, whose pup is small on screen, and for Critter Clinic and Boom Blocks, cropped close), with the game's buttons hidden or cropped out. A few used a closer camera than the game normally has: Mighty Mower zoomed in on the mower, and Monster Truck watching from in front and to the side. The square crops, 1024 px, are in `assets/cards/`. The app uses 768 px JPEGs of them in `launcher/images/`:
 
 ```sh
-for g in lawn-mower roller-coaster monster-truck gadget-glam turbo-quest critter-clinic; do
+for g in lawn-mower roller-coaster monster-truck gadget-glam turbo-quest critter-clinic boom-blocks; do
   swift scripts/crop-image.swift assets/cards/$g.png 0 0 1024 768 launcher/images/$g.jpg
 done
 ```
