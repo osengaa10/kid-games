@@ -43,6 +43,9 @@ export class Builder {
   fine(fx, fy, fz, paint, p = null) {
     if (!p) p = typeof paint === 'function' ? paint(unitX(fx), unitY(fy), unitZ(fz)) : paint;
     if (!p || !p.mat) return;
+    // A paint that forgot its color (say a palette indexed with a negative number) would come out
+    // black: always a mistake, so the scene tests catch it here.
+    if (typeof p.color !== 'number') throw new Error(`paint without a color at little block ${fx}, ${fy}, ${fz}`);
     this.grid.set(fx, fy, fz, p.mat, p.flat ? p.color : this.jitter(p.color, p.jitter ?? 0.08));
   }
 
@@ -113,6 +116,22 @@ export class Builder {
           this.fine(fx, fy, fz, paint);
         }
     }
+  }
+
+  // A cylinder lying along x, from unit x0 to x1, round the middle of units (cy, cz): a train's
+  // boiler, a tanker, a log. Solid; hollowOut makes it a shell.
+  cylinderX(x0, x1, cy, cz, radius, paint) {
+    const my = cy + 0.5;
+    const mz = cz + 0.5;
+    const Y0 = Math.max(0, fy0(Math.floor(my - radius - 1)));
+    const Y1 = fy0(Math.ceil(my + radius + 1));
+    const Z0 = fz0(Math.floor(mz - radius - 1));
+    const Z1 = fz0(Math.ceil(mz + radius + 1));
+    for (let fy = Y0; fy <= Y1; fy++)
+      for (let fz = Z0; fz <= Z1; fz++) {
+        if (Math.hypot(centerY(fy) - my, centerZ(fz) - mz) > radius) continue;
+        for (let fx = fx0(x0); fx < fx0(x1 + 1); fx++) this.fine(fx, fy, fz, paint);
+      }
   }
 
   // A cone (round roof) from radius at y0 to a point at y0 + height.

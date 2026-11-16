@@ -3,7 +3,7 @@
 // and the ground-slam shockwave makes every loose piece nearby jump. BONK!
 import * as THREE from '../../vendor/three.module.min.js';
 import * as sfx from '../sfx.js';
-import { BLOCK, toCellX, toCellZ } from '../core/grid.js';
+import { columnTop } from '../core/grid.js';
 
 const HANDLE = 14;
 const HEAD_R = 2.8;
@@ -67,7 +67,7 @@ export class Hammer {
     dx /= d;
     dz /= d;
     // Find the top of whatever stands under the spot, so the head lands on it.
-    const top = this.topAt(hit.x, hit.z);
+    const top = columnTop(g.grid, hit.x, hit.z, 2);
     const y = Math.max(top, 0);
     h.outer.position.set(hit.x - dx * HANDLE, y + HEAD_LEN / 2, hit.z - dz * HANDLE);
     h.outer.rotation.set(0, Math.atan2(dx, dz), 0);
@@ -78,25 +78,6 @@ export class Hammer {
     h.hit = { x: hit.x, y, z: hit.z };
     h.done = false;
     sfx.whoosh(g.panOf(hit.x, y, hit.z));
-  }
-
-  // Height of the top of the standing blocks around (x, z) (0 on bare ground).
-  topAt(x, z) {
-    const { grid } = this.g;
-    const gx = toCellX(x);
-    const gz = toCellZ(z);
-    const reach = Math.round(2 / BLOCK);
-    let top = 0;
-    for (let oz = -reach; oz <= reach; oz++)
-      for (let ox = -reach; ox <= reach; ox++) {
-        if (!grid.inside(gx + ox, 0, gz + oz)) continue;
-        for (let y = grid.top - 1; y >= 0; y--)
-          if (grid.mat[grid.index(gx + ox, y, gz + oz)]) {
-            top = Math.max(top, y + 1);
-            break;
-          }
-      }
-    return top * BLOCK;
   }
 
   update(dt) {

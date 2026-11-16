@@ -34,9 +34,10 @@ function rocket(b, cx, cz) {
 }
 
 // A square lattice tower: corner posts, a ring every `step`, zigzag braces on every face.
-function gantry(b, x0, z0, x1, z1, top, step = 5) {
-  const post = { mat: MAT.METAL, color: RED };
-  const brace = { mat: MAT.METAL, color: 0xffffff };
+// (Truck Town's tower crane uses it too: other colors, no aerial on top.)
+export function gantry(b, x0, z0, x1, z1, top, step = 5, { postColor = RED, braceColor = 0xffffff, aerial = true } = {}) {
+  const post = { mat: MAT.METAL, color: postColor };
+  const brace = { mat: MAT.METAL, color: braceColor };
   const corners = [
     [x0, z0],
     [x1, z0],
@@ -55,6 +56,7 @@ function gantry(b, x0, z0, x1, z1, top, step = 5) {
     }
   }
   b.box(x0, top + 1, z0, x1, top + 1, z1, { mat: MAT.METAL, color: GREY });
+  if (!aerial) return;
   b.beam((x0 + x1) / 2, top + 2, (z0 + z1) / 2, (x0 + x1) / 2, top + 7, (z0 + z1) / 2, { mat: MAT.METAL, color: GREY }, 0.5);
   b.dab((x0 + x1) / 2, top + 7.5, (z0 + z1) / 2, { mat: MAT.CANDY, color: RED, flat: true }, 1);
 }

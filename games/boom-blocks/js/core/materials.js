@@ -25,6 +25,7 @@ export const MAT = {
   CLOTH: 13,
   SNOW: 14,
   ICE: 15,
+  DIRT: 16,
 };
 
 const base = {
@@ -62,6 +63,8 @@ const table = {
   [MAT.SNOW]: { name: 'snow', density: 0.5, restitution: 0.04, friction: 0.95, chunk: [2, 6], crumbs: 4, dust: 1, sparkle: 0.25, neck: 0.6, strength: 0, sound: 'snow' },
   // Ice: breaks into glinting shards, and its chunks skate across the grass.
   [MAT.ICE]: { name: 'ice', density: 0.9, restitution: 0.12, friction: 0.05, chunk: [2, 6], crumbs: 4, shape: 'shard', dust: 0.05, sparkle: 0.9, neck: 0.64, strength: 0.05, sound: 'glass' },
+  // Dirt: crumbly and very dusty, with a soft crunch.
+  [MAT.DIRT]: { name: 'dirt', density: 1.2, restitution: 0.05, friction: 0.95, chunk: [2, 5], crumbs: 4, dust: 1, neck: 0.6, strength: 0, sound: 'snow' },
 };
 
 // MATERIALS[id] is the full entry; index 0 (empty) is null.

@@ -37,6 +37,8 @@ import { Hammer } from './tools/hammer.js';
 import { Cannon } from './tools/cannon.js';
 import { Tornado } from './tools/tornado.js';
 import { Dynamite } from './tools/dynamite.js';
+import { MachineGun } from './tools/machineGun.js';
+import { Ufo } from './tools/ufo.js';
 import { GrownUpPanel } from './dev/panel.js';
 import { Balloons } from './fx/balloons.js';
 import { setting } from './settings.js';
@@ -171,6 +173,8 @@ class Game {
       cannon: new Cannon(this),
       tornado: new Tornado(this),
       dynamite: new Dynamite(this),
+      gun: new MachineGun(this),
+      ufo: new Ufo(this),
     };
     this.toolId = 'meteor';
     this.ui = new UI(document.getElementById('hud'), {

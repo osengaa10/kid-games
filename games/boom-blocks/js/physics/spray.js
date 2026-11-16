@@ -197,6 +197,75 @@ export class BlockSpray {
     }
   }
 
+  // Steers the blocks round a vertical axis at (ax, az), the way a tornado or a tractor beam does:
+  // round it (spin), in toward it (pull, to a circle of radius `ring`, so they whirl round
+  // rather than bunching up in the middle) and up (lift inside `core`, a third of that further out; or, with `hover`, toward
+  // that height, so they float there). Without `hover`, blocks above `top` are thrown back out.
+  // a: how much of the way to that speed a block gets this frame, less further from the axis.
+  // Rubble lying in reach is picked up. Returns how many blocks it moved.
+  vortex(ax, az, reach, { top = 20, spin = 16, pull = 7, lift = 15, core = reach * 0.45, hover = null, ring = core * 0.6, out = 14, a = 0.12, dt = 1 / 60 } = {}) {
+    const { px, py, pz, vx, vy, vz, state } = this;
+    let n = 0;
+    for (let i = 0; i < this.hi; i++) {
+      const s = state[i];
+      if (s === FREE || s === SHRINK) continue;
+      const y = py[i];
+      if (y > top + 6) continue;
+      const dx = px[i] - ax;
+      const dz = pz[i] - az;
+      const r = Math.sqrt(dx * dx + dz * dz);
+      if (r > reach) continue;
+      if (s === REST) this.unrest(i);
+      state[i] = FLY;
+      this.t[i] = 0;
+      const ux = r > 1e-3 ? dx / r : 0;
+      const uz = r > 1e-3 ? dz / r : 0;
+      // Keep it going round: its velocity turns with it as it circles (the pull toward the
+      // middle a real whirlwind has), or the spin would just fling it outward.
+      if (r > 0.3) {
+        const th = ((-uz * vx[i] + ux * vz[i]) * dt) / r;
+        const c = Math.cos(th);
+        const sn = Math.sin(th);
+        const nx = vx[i] * c - vz[i] * sn;
+        vz[i] = vx[i] * sn + vz[i] * c;
+        vx[i] = nx;
+      }
+      // Slower round the very middle, so nothing whirls like a drill.
+      let vt = Math.min(spin, r * 6);
+      // In toward the ring it circles on (out to it from closer in).
+      let vin = Math.max(-pull, Math.min(pull, (ring - r) * 3));
+      let vup = hover === null ? (r < core ? lift : lift / 3) : Math.max(-4, Math.min(14, (hover - y) * 3));
+      if (hover === null && y > top) {
+        vt = spin * 0.6;
+        vin = out;
+        vup = 4;
+      }
+      const k = a * (1 - r / reach);
+      vx[i] += (-uz * vt + ux * vin - vx[i]) * k;
+      vy[i] += (vup - vy[i]) * k;
+      vz[i] += (ux * vt + uz * vin - vz[i]) * k;
+      n++;
+    }
+    return n;
+  }
+
+  // Takes away every block within r of a point (a UFO beaming them up). Returns how many.
+  take(x, y, z, r) {
+    const { px, py, pz, state } = this;
+    let n = 0;
+    for (let i = 0; i < this.hi; i++) {
+      const s = state[i];
+      if (s === FREE || s === SHRINK) continue;
+      const dx = px[i] - x;
+      const dy = py[i] - y;
+      const dz = pz[i] - z;
+      if (dx * dx + dy * dy + dz * dz > r * r) continue;
+      this.release(i);
+      n++;
+    }
+    return n;
+  }
+
   // One frame.
   update(dt) {
     if (dt <= 0) return;

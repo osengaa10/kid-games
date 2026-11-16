@@ -7,10 +7,16 @@ import bay from './bay.js';
 import snow from './snow.js';
 import space from './space.js';
 import fair from './fair.js';
+import trucks from './trucks.js';
+import jungle from './jungle.js';
+import farm from './farm.js';
+import toys from './toys.js';
+import train from './train.js';
+import cake from './cake.js';
 import { Builder } from '../builders.js';
 import { rng } from '../rng.js';
 
-export const SCENES = [tower, castle, city, garden, bay, snow, space, fair];
+export const SCENES = [tower, castle, city, garden, bay, snow, space, fair, trucks, jungle, farm, toys, train, cake];
 
 export const sceneById = (id) => SCENES.find((s) => s.id === id) || SCENES[0];
 

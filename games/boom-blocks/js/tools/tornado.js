@@ -6,6 +6,7 @@
 import * as THREE from '../../vendor/three.module.min.js';
 import * as sfx from '../sfx.js';
 import { MAT } from '../core/materials.js';
+import { steerPieces } from './wind.js';
 
 const HEIGHT = 24;
 const LINGER = 3.5;
@@ -217,53 +218,26 @@ export class Tornado {
     }
   }
 
-  // Loose pieces nearby get pulled in, carried round and up, and thrown out of the top.
+  // Loose pieces and loose single blocks nearby get pulled in, carried round and up, and thrown
+  // out of the top.
   whirl(dt) {
     const tw = this.tw;
-    const { pieces } = this.g;
     const reach = PULL * tw.grow;
     const top = HEIGHT * 0.8 * tw.grow;
-    const near = [];
-    for (const p of pieces.list) {
-      if (p.dead) continue;
-      const t = p.body.translation();
-      if (t.y > top + 6) continue;
-      // The funnel leans with its bend, so measure from its middle at that height.
-      const h = Math.min(1, t.y / HEIGHT);
-      const ax = tw.x + tw.bend.x * h * h;
-      const az = tw.z + tw.bend.y * h * h;
-      const r = Math.hypot(t.x - ax, t.z - az);
-      if (r < reach) near.push([r, p, t, ax, az]);
-    }
-    near.sort((a, b) => a[0] - b[0]);
-    let thawed = 0;
-    for (const [r, p, t, ax, az] of near.slice(0, CARRY)) {
-      if (p.frozen) {
-        if (r > 5 || thawed >= 6) continue;
-        pieces.thaw(p);
-        thawed++;
-      }
-      const ux = (t.x - ax) / (r || 1);
-      const uz = (t.z - az) / (r || 1);
-      let vt = 16;
-      let vin = -7;
-      let vup = r < 4.5 ? 15 : 5;
-      if (t.y > top) {
-        vin = 14;
-        vup = 4;
-        vt = 10;
-      }
-      const want = { x: -uz * vt + ux * vin, y: vup, z: ux * vt + uz * vin };
-      // Big sections hardly budge; little bits fly.
-      const a = Math.min(1, dt * 5 * (1 - r / reach) * tw.grow * Math.min(1, 30 / p.mass));
-      if (a < 0.002) continue;
-      const v = p.body.linvel();
-      p.body.setLinvel({ x: v.x + (want.x - v.x) * a, y: v.y + (want.y - v.y) * a, z: v.z + (want.z - v.z) * a }, true);
-      if (Math.random() < 0.08) {
-        const w = p.body.angvel();
-        p.body.setAngvel({ x: w.x + (Math.random() - 0.5) * 6, y: w.y + (Math.random() - 0.5) * 6, z: w.z + (Math.random() - 0.5) * 6 }, true);
-      }
-    }
+    // The funnel leans with its bend, so measure from its middle at each height.
+    const axisAt = (y) => {
+      const h = Math.min(1, y / HEIGHT);
+      return [tw.x + tw.bend.x * h * h, tw.z + tw.bend.y * h * h];
+    };
+    steerPieces(this.g, axisAt, reach, {
+      top,
+      max: CARRY,
+      rate: 5 * tw.grow,
+      dt,
+      want: (r, y, ux, uz) => (y > top ? { x: -uz * 10 + ux * 14, y: 4, z: ux * 10 + uz * 14 } : { x: -uz * 16 - ux * 7, y: r < 4.5 ? 15 : 5, z: ux * 16 - uz * 7 }),
+    });
+    const [mx, mz] = axisAt(HEIGHT * 0.3);
+    this.g.spray.vortex(mx, mz, reach, { top, a: 0.12 * tw.grow, dt });
   }
 
   // Dust kicked up round its foot, and bits of grass and leaves whirling off it.

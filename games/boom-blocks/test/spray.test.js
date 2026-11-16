@@ -120,3 +120,37 @@ test('a blast kicks resting rubble back into the air', () => {
   run(s, 4);
   assert.equal(s.resting, 1, 'and it lands again');
 });
+
+test('a vortex picks up the rubble in reach, whirls it round and lifts it, and leaves the rest', () => {
+  const g = new Grid(64, 64, 64);
+  const s = new BlockSpray(g, sink(), 32);
+  // Two blocks near the axis, one well outside reach.
+  const ax = cellX(32);
+  const az = cellZ(32);
+  s.emit(ax + 1.5, 2, az, 0, 0, 0, 0xff0000, MAT.PLASTIC, null, 0);
+  s.emit(ax - 1, 2, az + 1, 0, 0, 0, 0x00ff00, MAT.PLASTIC, null, 0);
+  s.emit(ax + 12, 2, az, 0, 0, 0, 0x0000ff, MAT.PLASTIC, null, 0);
+  run(s, 2);
+  assert.equal(s.resting, 3);
+  for (let t = 0; t < 1.5; t += DT) {
+    s.vortex(ax, az, 6, { top: 18 });
+    s.update(DT);
+  }
+  assert.ok(s.py[0] > 4 && s.py[1] > 4, `lifted to ${s.py[0].toFixed(2)}, ${s.py[1].toFixed(2)}`);
+  assert.equal(s.state[2], 3, 'the one out of reach still lies there');
+  // With a hover height they gather there rather than flying off the top.
+  for (let t = 0; t < 4; t += DT) {
+    s.vortex(ax, az, 6, { hover: 10, spin: 3, a: 0.15 });
+    s.update(DT);
+  }
+  for (const i of [0, 1]) assert.ok(Math.abs(s.py[i] - 10) < 2.5, `block ${i} floats at ${s.py[i].toFixed(2)}`);
+});
+
+test('take removes the blocks near a point', () => {
+  const g = new Grid(32, 32, 32);
+  const s = new BlockSpray(g, sink(), 16);
+  s.emit(cellX(10), 5, cellZ(10), 0, 0, 0, 0xff0000, MAT.PLASTIC);
+  s.emit(cellX(20), 5, cellZ(10), 0, 0, 0, 0xff0000, MAT.PLASTIC);
+  assert.equal(s.take(cellX(10), 5, cellZ(10), 1), 1);
+  assert.equal(s.count, 1);
+});

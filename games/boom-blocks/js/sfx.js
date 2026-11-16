@@ -300,3 +300,88 @@ export function plunger() {
   tone(140, t + 0.11, 0.12, { type: 'triangle', vol: 0.35, to: 60 });
   noise(t + 0.11, 0.08, { type: 'lowpass', freq: 900, vol: 0.3 });
 }
+
+// One machine-gun shot: a short punchy crack with a thump under it.
+export function gunShot(pan = 0) {
+  if (!ready() || !throttle('gun', 55)) return;
+  const t = now();
+  noise(t, 0.06, { freq: r(1100, 1700), q: 0.8, vol: 0.3, pan });
+  noise(t, 0.025, { type: 'highpass', freq: 4000, vol: 0.12, pan });
+  tone(r(140, 170), t, 0.07, { type: 'triangle', vol: 0.28, to: 60, pan });
+}
+
+// The machine gun's barrels whirring (pitch follows how fast they spin). Returns a hold handle.
+export function gunSpin() {
+  return hold((ctx, out) => {
+    const t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.value = 90;
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.value = 700;
+    o.connect(f).connect(out);
+    o.start(t);
+    return {
+      pitch(p, at) {
+        o.frequency.setTargetAtTime(60 + 140 * p, at, 0.05);
+        f.frequency.setTargetAtTime(400 + 700 * p, at, 0.05);
+      },
+      stop() {
+        o.stop();
+      },
+    };
+  });
+}
+
+// The UFO's hum: two warbling sine tones, like a cartoon flying saucer. Returns a hold handle.
+export function ufoHum() {
+  return hold((ctx, out) => {
+    const t = ctx.currentTime;
+    const parts = [];
+    for (const [f0, rate, depth, vol] of [
+      [330, 6, 30, 0.5],
+      [495, 3.7, 45, 0.3],
+    ]) {
+      const o = ctx.createOscillator();
+      o.type = 'sine';
+      o.frequency.value = f0;
+      const lfo = ctx.createOscillator();
+      lfo.frequency.value = rate;
+      const lg = ctx.createGain();
+      lg.gain.value = depth;
+      lfo.connect(lg).connect(o.frequency);
+      const g = ctx.createGain();
+      g.gain.value = vol;
+      o.connect(g).connect(out);
+      o.start(t);
+      lfo.start(t);
+      parts.push([o, lfo, f0]);
+    }
+    return {
+      pitch(p, at) {
+        for (const [o, , f0] of parts) o.frequency.setTargetAtTime(f0 * p, at, 0.1);
+      },
+      stop() {
+        for (const [o, lfo] of parts) {
+          o.stop();
+          lfo.stop();
+        }
+      },
+    };
+  });
+}
+
+// The UFO arriving: a swooping wee-ooo.
+export function ufoArrive(pan = 0) {
+  if (!ready()) return;
+  const t = now();
+  tone(1400, t, 0.35, { type: 'sine', vol: 0.1, to: 500, vibrato: 7, pan });
+  tone(500, t + 0.3, 0.4, { type: 'sine', vol: 0.09, to: 1100, vibrato: 7, pan });
+}
+
+// Something beamed aboard the UFO.
+export function bloop(pan = 0) {
+  if (!ready() || !throttle('bloop', 90)) return;
+  tone(r(380, 460), now(), 0.12, { type: 'sine', vol: 0.12, to: r(900, 1200), pan });
+}

@@ -130,3 +130,22 @@ export const toCellZ = (wz) => Math.floor((wz - OZ) / BLOCK);
 export const gridX = (wx) => (wx - OX) / BLOCK;
 export const gridY = (wy) => wy / BLOCK;
 export const gridZ = (wz) => (wz - OZ) / BLOCK;
+
+// Height (world units) of the top of the standing blocks within `reach` world units of (x, z),
+// 0 on bare ground: where a hammer lands, how high a UFO hovers.
+export function columnTop(grid, x, z, reach = 2) {
+  const gx = toCellX(x);
+  const gz = toCellZ(z);
+  const r = Math.round(reach / BLOCK);
+  let top = 0;
+  for (let oz = -r; oz <= r; oz++)
+    for (let ox = -r; ox <= r; ox++) {
+      if (!grid.inside(gx + ox, 0, gz + oz)) continue;
+      for (let y = grid.top - 1; y >= top; y--)
+        if (grid.mat[grid.index(gx + ox, y, gz + oz)]) {
+          top = y + 1;
+          break;
+        }
+    }
+  return top * BLOCK;
+}
