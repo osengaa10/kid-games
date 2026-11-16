@@ -1,9 +1,37 @@
-// Rainbow Tower Park: one giant spiral-striped tower to topple, with a few smaller towers and
-// trees around it to knock over with the pieces.
+// Rainbow Tower Park: one giant spiral-striped tower to topple, with more towers round it (a
+// brick tower, a candy-cane pillar, a wobbly stack of toy blocks, a plank tower of crossed
+// wooden planks), a stepped pyramid of colored blocks, and trees to knock over with the pieces.
 import { MAT } from '../materials.js';
 import { RAINBOW } from '../builders.js';
 
 const leafColors = [0x4cc85a, 0x3fb950, 0x69d66b];
+const WOODS = [0xd9a35b, 0xc98a4b, 0xe8b878, 0xb57a35];
+
+// A plank tower: layers of three wooden planks, each layer crossing the one below. x0, z0: its
+// corner; `w` across (three planks of w/3), `layers` high.
+function plankTower(b, x0, z0, w = 9, layers = 20) {
+  const plank = w / 3;
+  for (let k = 0; k < layers; k++)
+    for (let i = 0; i < 3; i++) {
+      const color = WOODS[(k * 3 + i) % WOODS.length];
+      const a = x0 + i * plank;
+      const paint = { mat: MAT.WOOD, color };
+      if (k % 2) b.box(a, k, z0, a + plank - 1, k, z0 + w - 1, paint);
+      else b.box(x0, k, z0 + i * plank, x0 + w - 1, k, z0 + i * plank + plank - 1, paint);
+    }
+}
+
+// A stepped pyramid of colored blocks, `size` units each, `n` blocks along the bottom.
+function blockPyramid(b, x0, z0, n = 6, size = 2) {
+  const colors = [0xff4d4d, 0x2ec4f1, 0xffd23f, 0x5fd35f, 0xb15cff, 0xff9f1c];
+  for (let k = 0; k < n; k++)
+    for (let i = 0; i < n - k; i++)
+      for (let j = 0; j < n - k; j++) {
+        const x = x0 + Math.round((k * size) / 2) + i * size;
+        const z = z0 + Math.round((k * size) / 2) + j * size;
+        b.box(x, k * size, z, x + size - 1, k * size + size - 1, z + size - 1, { mat: MAT.PLASTIC, color: colors[(i + j * 2 + k * 3) % colors.length] });
+      }
+}
 
 export function tree(b, x, z, h = 3, r = 2.4) {
   b.box(x, 0, z, x, h - 1, z, { mat: MAT.WOOD, color: 0x9a6233 });
@@ -57,36 +85,39 @@ export default {
     // A wobbly stack of giant toy blocks.
     const stack = [0xff4d4d, 0x2ec4f1, 0xffd23f, 0x5fd35f, 0xb15cff, 0xff9f1c, 0x5b6cff];
     for (let i = 0; i < 7; i++) {
-      const ox = -19 + (i % 2);
-      const oz = 10 - (i % 3 === 2 ? 1 : 0);
-      b.box(ox - 1, i * 3, oz - 1, ox + 1, i * 3 + 2, oz + 1, { mat: MAT.PLASTIC, color: stack[i], jitter: 0.04 });
+      const ox = -22 + (i % 2);
+      const oz = 9 - (i % 3 === 2 ? 1 : 0);
+      b.box(ox - 2, i * 4, oz - 2, ox + 1, i * 4 + 3, oz + 1, { mat: MAT.PLASTIC, color: stack[i], jitter: 0.04 });
     }
 
     // A brick tower with a red roof.
-    b.hollowBox(15, 0, -19, 21, 19, -13, { mat: MAT.BRICK, color: 0xe8774f }, { floorEvery: 5 });
-    b.pyramid(15, -19, 21, -13, 20, { mat: MAT.BRICK, color: 0xd9363e });
-    b.hole(18, 0, -13, 18, 2, -13);
-    for (const wy of [6, 12])
+    b.hollowBox(15, 0, -24, 24, 25, -15, { mat: MAT.BRICK, color: 0xe8774f }, { floorEvery: 5 });
+    b.pyramid(15, -24, 24, -15, 26, { mat: MAT.BRICK, color: 0xd9363e });
+    b.hole(19, 0, -15, 20, 3, -15);
+    for (const wy of [6, 11, 16, 21])
       for (const [x0, z0, x1, z1] of [
-        [18, -13, 18, -13],
-        [15, -16, 15, -16],
-        [21, -16, 21, -16],
+        [19, -15, 20, -15],
+        [15, -20, 15, -19],
+        [24, -20, 24, -19],
       ])
         b.hole(x0, wy, z0, x1, wy + 1, z1);
 
-    // A skinny candy-cane tower.
-    b.box(-21, 0, -15, -18, 23, -12, (x, y) => ({ mat: MAT.CANDY, color: Math.floor(y / 2) % 2 ? 0xffffff : 0xff5fa2 }));
-    b.cone(-19.5, -13.5, 24, 4, 2.5, { mat: MAT.CANDY, color: 0xffd23f });
+    // A candy-cane tower.
+    b.box(-23, 0, -19, -18, 29, -14, (x, y) => ({ mat: MAT.CANDY, color: Math.floor(y / 2) % 2 ? 0xffffff : 0xff5fa2 }));
+    b.cone(-20.5, -16.5, 30, 5, 3.6, { mat: MAT.CANDY, color: 0xffd23f });
+
+    // A plank tower and a pyramid of blocks out front.
+    plankTower(b, 26, -2, 9, 22);
+    blockPyramid(b, -17, 15, 6, 2);
 
     // Trees to flatten.
     for (const [x, z, h] of [
-      [-9, -16, 3],
-      [-28, -2, 4],
-      [-6, 20, 3],
-      [16, 10, 3],
-      [26, 0, 4],
-      [4, -26, 4],
-      [-28, 20, 3],
+      [-9, -18, 3],
+      [-30, -2, 4],
+      [4, -27, 4],
+      [2, 24, 3],
+      [15, 17, 3],
+      [24, 22, 4],
     ])
       tree(b, x, z, h);
   },

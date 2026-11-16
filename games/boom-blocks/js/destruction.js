@@ -20,7 +20,15 @@ import { BLOCK, cellX, cellY, cellZ, gridX, gridY, gridZ } from './core/grid.js'
 const PER = Math.round(1 / (BLOCK * BLOCK * BLOCK));
 import * as sfx from './sfx.js';
 
-const MAX_REGIONS_PER_FRAME = 3;
+// Structure checks (is anything left standing on too little?) run a cut plane at a time, until
+// this many milliseconds of a frame are spent; the rest carry on next frame, so a big hit never
+// costs one long frame.
+const STRUCTURE_MS = 2;
+// A damaged region waits this many frames before it's checked, so a laser's many small cuts in a
+// row are checked as one.
+const REGION_WAIT = 2;
+// Cut planes checked across a region: every second one (plus the top of the hole).
+const PLANE_STEP = 2;
 const MAX_SHATTERS_PER_FRAME = 2;
 const MAX_CHAINS_PER_FRAME = 4;
 // New physics pieces per frame: a big blast throws a few dozen real chunks and turns the rest to
@@ -38,7 +46,10 @@ export class Destruction {
   constructor(game) {
     this.g = game;
     this.seeds = [];
+    // Damaged regions waiting for (or part way through) their structure check:
+    // { x0, y0, z0, x1, y1, z1, born (frame), planes (once started), next, taken }.
     this.regions = [];
+    this.frameNo = 0;
     this.shatters = [];
     this.chains = [];
     this.timers = [];
@@ -463,8 +474,14 @@ export class Destruction {
       if (y > y1) y1 = y;
       if (z > z1) z1 = z;
     }
-    // Merge with an overlapping pending region, so a laser sweep is one region, not hundreds.
+    this.queueRegion(x0, y0, z0, x1, y1, z1);
+  }
+
+  queueRegion(x0, y0, z0, x1, y1, z1) {
+    // Merge with an overlapping region whose check hasn't started, so a laser sweep is a few
+    // regions, not hundreds.
     for (const r of this.regions) {
+      if (r.planes) continue;
       if (x0 <= r.x1 + 2 && x1 >= r.x0 - 2 && y0 <= r.y1 + 2 && y1 >= r.y0 - 2 && z0 <= r.z1 + 2 && z1 >= r.z0 - 2) {
         r.x0 = Math.min(r.x0, x0);
         r.y0 = Math.min(r.y0, y0);
@@ -475,13 +492,13 @@ export class Destruction {
         return;
       }
     }
-    this.regions.push({ x0, y0, z0, x1, y1, z1 });
+    this.regions.push({ x0, y0, z0, x1, y1, z1, born: this.frameNo, planes: null, next: 0, taken: null });
   }
 
-  // Cuts a set of still-standing cells loose: it falls. topple: the damaged region, so it leans
-  // toward the side that lost its support. Where it broke it crumbles (blocks next to the damage
-  // fall off on their own), and a big section cracks into a few lengths that all start falling
-  // as one and come apart as they go.
+  // Cuts a set of still-standing cells loose: it falls. topple: a grid box around where it lost
+  // its support (cx, cz: the middle of that, if known), so it leans toward that side. Where it
+  // broke it crumbles (blocks in that box fall off on their own), and a big section cracks into a
+  // few lengths that all start falling as one and come apart as they go.
   detach(cells, topple = null) {
     const { grid, pieces, rand } = this.g;
     let motion = { vx: 0, vy: 0, vz: 0, ax: 0, ay: 0, az: 0 };
@@ -502,8 +519,8 @@ export class Destruction {
       cx /= cells.length;
       cy /= cells.length;
       cz /= cells.length;
-      const hx = (topple.x0 + topple.x1 + 1) / 2;
-      const hz = (topple.z0 + topple.z1 + 1) / 2;
+      const hx = topple.cx ?? (topple.x0 + topple.x1 + 1) / 2;
+      const hz = topple.cz ?? (topple.z0 + topple.z1 + 1) / 2;
       let dx = hx - cx;
       let dz = hz - cz;
       const d = Math.hypot(dx, dz);
@@ -917,20 +934,16 @@ export class Destruction {
 
   // Once a frame: structure checks, queued shatters and chain hits, fuses.
   update() {
-    const { structure, time } = this.g;
+    const { time } = this.g;
     this.spawned = 0;
     this.sprayed = 0;
+    this.frameNo++;
     if (this.seeds.length) {
       const seeds = this.seeds;
       this.seeds = [];
-      for (const comp of structure.floating(seeds)) this.detach(comp);
+      for (const comp of this.g.structure.floating(seeds)) this.detach(comp);
     }
-    for (let k = 0; k < MAX_REGIONS_PER_FRAME && this.regions.length; k++) {
-      const region = this.regions.shift();
-      for (const weak of structure.weakNecks(region, { step: 2, minMass: 40 })) {
-        if (weak.cells.every((c) => this.g.grid.mat[c])) this.detach(weak.cells, region);
-      }
-    }
+    this.checkRegions();
     // At most one section cracks a frame (it's a lot of work).
     for (const p of this.g.pieces.list) {
       if (p.crackAt && time >= p.crackAt && !p.dead) {
@@ -951,6 +964,38 @@ export class Destruction {
       const due = this.timers.filter((t) => t.at <= time);
       this.timers = this.timers.filter((t) => t.at > time);
       for (const t of due) t.run();
+    }
+  }
+
+  // Structure checks of damaged regions: a cut plane at a time, oldest region first, until this
+  // frame's STRUCTURE_MS is spent (the rest wait for the next frame). Whatever is found standing
+  // on too little topples toward the side it lost.
+  checkRegions() {
+    const { structure, grid } = this.g;
+    const t0 = performance.now();
+    while (this.regions.length) {
+      const job = this.regions[0];
+      if (!job.planes) {
+        // Regions queue oldest first, so if this one is too fresh, so are the rest.
+        if (this.frameNo - job.born < REGION_WAIT) break;
+        job.planes = structure.planesFor(job, PLANE_STEP);
+        job.taken = new Set();
+      }
+      if (job.next >= job.planes.length) {
+        this.regions.shift();
+        continue;
+      }
+      const floorY = job.planes[job.next++];
+      for (const weak of structure.checkPlane(job, floorY, job.taken, { minMass: 40 })) {
+        // Some of it already went another way: look again next time, at what's left.
+        if (!weak.cells.every((c) => grid.mat[c])) {
+          this.queueRegion(job.x0, job.y0, job.z0, job.x1, job.y1, job.z1);
+          continue;
+        }
+        const l = weak.lost;
+        this.detach(weak.cells, l ? { x0: l.x0, x1: l.x1, z0: l.z0, z1: l.z1, y0: weak.plane - 2, y1: weak.plane + 1, cx: l.cx, cz: l.cz } : job);
+      }
+      if (performance.now() - t0 > STRUCTURE_MS) break;
     }
   }
 

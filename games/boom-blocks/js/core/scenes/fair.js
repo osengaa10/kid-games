@@ -90,8 +90,9 @@ export default {
     dropTower(b, 27, -22);
     // The tin-can stall: a striped counter with a pyramid of cans on it.
     b.box(-6, 0, 14, 6, 2, 16, (x, y) => ({ mat: MAT.WOOD, color: y === 2 ? 0xffffff : (x & 1 ? 0xff4d4d : 0xffffff) }));
-    for (const x of [-6, 6]) b.box(x, 3, 16, x, 8, 16, { mat: MAT.WOOD, color: 0xc98a4b });
-    b.box(-6, 9, 14, 6, 9, 16, (x) => ({ mat: MAT.CLOTH, color: x & 1 ? 0x2e9bf1 : 0xffffff, flat: true }));
+    // (The awning is above the top can: cans built inside it get shoved out and topple at the start.)
+    for (const x of [-6, 6]) b.box(x, 3, 16, x, 15, 16, { mat: MAT.WOOD, color: 0xc98a4b });
+    b.box(-6, 16, 14, 6, 16, 16, (x) => ({ mat: MAT.CLOTH, color: x & 1 ? 0x2e9bf1 : 0xffffff, flat: true }));
     const canColors = [0xff4d4d, 0x5fd35f, 0x2e9bf1, 0xffd23f, 0xb15cff, 0xff9f1c, 0xff5fa2, 0x5b6cff, 0xff4d4d, 0x2e9bf1];
     let n = 0;
     for (let row = 0; row < 4; row++)

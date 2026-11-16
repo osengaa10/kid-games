@@ -2,7 +2,7 @@
 // within the block budget the iPad can draw.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Grid } from '../js/core/grid.js';
+import { Grid, BLOCK, OX, OZ } from '../js/core/grid.js';
 import { Structure } from '../js/core/connect.js';
 import { SCENES, buildScene } from '../js/core/scenes/index.js';
 
@@ -61,6 +61,34 @@ for (const scene of SCENES) {
         const separated = [...A.axes, ...B.axes].some((ax) => Math.abs(d[0] * ax[0] + d[1] * ax[1]) >= proj(A, ax) + proj(B, ax));
         assert.ok(separated, `props ${i} and ${j} overlap`);
       }
+  });
+}
+
+// Props mustn't start inside the standing blocks either, or the physics flings them out on load
+// (the fair's cans once started inside the stall's awning).
+for (const scene of SCENES) {
+  test(`${scene.id}: props don't start inside blocks`, () => {
+    const g = new Grid();
+    const b = buildScene(g, scene, 7);
+    b.props.forEach(({ cells, center, yaw }, i) => {
+      const span = (k) => (Math.min(...cells.map((c) => c[k])) + Math.max(...cells.map((c) => c[k])) + 1) / 2;
+      const [mx, my, mz] = [span(0), span(1), span(2)];
+      const c = Math.cos(yaw);
+      const s = Math.sin(yaw);
+      // Each prop cell is a scene unit: check the middles of its 2×2×2 little blocks.
+      for (const [x, y, z] of cells)
+        for (let o = 0; o < 8; o++) {
+          const lx = x + ((o & 1) + 0.5) / 2 - mx;
+          const ly = y + (((o >> 1) & 1) + 0.5) / 2 - my;
+          const lz = z + (((o >> 2) & 1) + 0.5) / 2 - mz;
+          const wx = center[0] + lx * c + lz * s;
+          const wz = center[2] - lx * s + lz * c;
+          const gx = Math.floor((wx - OX) / BLOCK);
+          const gy = Math.floor((center[1] + ly) / BLOCK);
+          const gz = Math.floor((wz - OZ) / BLOCK);
+          assert.ok(!g.get(gx, gy, gz), `prop ${i} at ${center.map((v) => v.toFixed(1))} starts inside a block`);
+        }
+    });
   });
 }
 
