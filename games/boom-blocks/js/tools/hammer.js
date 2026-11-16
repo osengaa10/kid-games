@@ -148,7 +148,7 @@ export class Hammer {
     g.fx.bursts.star(x, y + 0.5, z, 6, 0xff9cc8, { calm: g.fx.calm });
     g.fx.dustCloud(x, Math.max(0.3, y), z, 22, 11, null, { ring: true, rise: 1.5, size: 3, life: 2.4 });
     g.fx.sparkBurst(x, y + 0.5, z, 40, 18, { up: 0.6, colors: undefined });
-    g.pieces.blast(x, 0, z, 18, 7, 2.2);
+    g.push(x, 0, z, 18, 7, 2.2);
     g.blastNear(x, 0, z, 10);
     g.wave(x, z, 1.5);
     g.fx.shake.add(0.5);

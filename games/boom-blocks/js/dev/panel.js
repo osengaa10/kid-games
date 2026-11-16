@@ -65,8 +65,8 @@ export function describe(r) {
   return [
     `${r.tier.toUpperCase()}: ${f0(r.fps)} fps (${verdict}) · 95% under ${f0(r.p95)} ms · worst ${f0(r.worst)} · ${f0(r.good * 100)}% at 60 fps`,
     `  our work ${f1(b.cpu)} ms (95% ${f0(b.cpuP95)}) · graphics chip ${f1(b.graphics)} ms`,
-    `  physics ${f1(b.physics)} (95% ${f0(b.physicsP95)}) · smashing ${f1(b.destruction)} · drawing ${f1(b.draw)} · other ${f1(b.other)}`,
-    `  up to ${r.maxAwake} moving / ${r.maxPieces} loose · ${Object.entries(r.perScene)
+    `  physics ${f1(b.physics)} (95% ${f0(b.physicsP95)}) · smashing ${f1(b.destruction)} · single blocks ${f1(b.spray ?? 0)} · drawing ${f1(b.draw)} · other ${f1(b.other)}`,
+    `  up to ${r.maxAwake} moving / ${r.maxPieces} pieces / ${r.maxSpray ?? 0} single blocks · ${Object.entries(r.perScene)
       .map(([k, v]) => `${k} ${f0(v)}`)
       .join(' · ')} fps`,
   ];

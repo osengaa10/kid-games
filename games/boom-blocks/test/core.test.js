@@ -4,7 +4,7 @@ import { Grid } from '../js/core/grid.js';
 import { MAT, MATERIALS } from '../js/core/materials.js';
 import { carveSphere, carveCapsule, carveColumn, raycastGrid } from '../js/core/carve.js';
 import { Structure } from '../js/core/connect.js';
-import { clumps } from '../js/core/chunker.js';
+import { clumps, splitSection, crackSection } from '../js/core/chunker.js';
 import { greedyBoxes, boundedBoxes, innerBoxes } from '../js/core/boxes.js';
 import { Combo } from '../js/core/combo.js';
 import { evictions, tidy, shatterPlan } from '../js/core/budget.js';
@@ -294,10 +294,21 @@ test('a shatter plan keeps every block and fits the room', () => {
     assert.ok(plan.pieces <= room, `room ${room}: ${plan.pieces} pieces`);
     for (const [lo, hi] of plan.sizes) assert.ok(lo >= 1 && hi >= lo);
   }
-  // With plenty of room the near end breaks small and the far end stays in a few slabs.
+  // With plenty of room the near end breaks small, the middle into small chunks, and the far end
+  // into slabs of a few hundred to a thousand blocks (never one giant lump).
   const roomy = shatterPlan(dist, 1000, { near: 4, mid: 10 });
   assert.ok(roomy.sizes[0][1] <= 24);
-  assert.ok(roomy.sizes[2][0] > 1000);
+  assert.ok(roomy.sizes[1][1] <= 30);
+  assert.ok(roomy.sizes[2][0] >= 100 && roomy.sizes[2][1] <= 1500, `far ${roomy.sizes[2]}`);
+  // Spraying the near end leaves the room for the rest.
+  const sprayed = shatterPlan(dist, 70, { near: 4, mid: 10, sprayNear: true });
+  assert.ok(sprayed.pieces <= 70);
+  assert.ok(sprayed.sizes[1][1] <= shatterPlan(dist, 70, { near: 4, mid: 10 }).sizes[1][1]);
+  // No room at all: the near end still bursts, everything else stays one slab.
+  const tight = shatterPlan(dist, 1, { near: 4, mid: 10, sprayNear: true });
+  assert.equal(tight.counts[0], dist.filter((d) => d < 4).length);
+  assert.equal(tight.counts[0] + tight.counts[2], n);
+  assert.ok(tight.pieces <= 1);
   // Small pieces just break into small bits.
   const tiny = shatterPlan(new Float32Array(50).fill(9), 100, { eq: 6 });
   assert.equal(tiny.counts[0], 50);
@@ -426,4 +437,37 @@ test('OpenAir: air under an overhang is open; the ground is never a side', () =>
   // The top's underside shows (+y = 2, -y = 3); a leg's bottom doesn't.
   assert.equal(air.sideOpen(g.index(4, 3, 4), 3), true);
   assert.equal(air.sideOpen(g.index(2, 0, 2), 3), false);
+});
+
+test('splitSection cracks a tall tower into stacked lengths, every block once', () => {
+  const r = rng(11);
+  const xs = [];
+  const ys = [];
+  const zs = [];
+  // A hollow 4×4 tower, 60 high.
+  for (let y = 0; y < 60; y++)
+    for (let z = 0; z < 4; z++)
+      for (let x = 0; x < 4; x++)
+        if (x === 0 || z === 0 || x === 3 || z === 3) {
+          xs.push(x);
+          ys.push(y);
+          zs.push(z);
+        }
+  const parts = splitSection(xs, ys, zs, 3, r);
+  const seen = new Uint8Array(xs.length);
+  for (const p of parts) for (const i of p) seen[i]++;
+  assert.ok(seen.every((v) => v === 1), 'every block in exactly one part');
+  assert.ok(parts.length >= 3, `${parts.length} parts`);
+  // The three biggest are lengths of the tower, one above the other.
+  const mids = parts.slice(0, 3).map((p) => p.reduce((a, i) => a + ys[i], 0) / p.length).sort((a, b) => a - b);
+  assert.ok(mids[0] < 22 && mids[1] > 20 && mids[1] < 40 && mids[2] > 38, `middles ${mids}`);
+  // One part asked for: just the whole thing.
+  assert.equal(splitSection(xs, ys, zs, 1, r).length, 1);
+  // With a crumbling seam: the seam blocks are in no part, everything else in exactly one.
+  const { parts: cracked, seam } = crackSection(xs, ys, zs, 3, r, { seam: 0.6, seamMax: 50 });
+  assert.ok(seam.length > 0 && seam.length <= 50);
+  const count = new Uint8Array(xs.length);
+  for (const p of cracked) for (const i of p) count[i]++;
+  for (const i of seam) count[i] += 10;
+  assert.ok(count.every((v) => v === 1 || v === 10), 'each block once, in a part or the seam');
 });

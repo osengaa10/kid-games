@@ -197,7 +197,7 @@ export class Dynamite {
     const z = c.z - c.nz * 0.6;
     g.destruction.impact({ x, y, z, radius: 3.1, power: 1.2, shellChance: 0.8 });
     g.fx.blast(x, y, z, 1);
-    g.pieces.blast(x, y, z, 11, 8, 0.8);
+    g.push(x, y, z, 11, 8, 0.8);
     g.blastNear(x, y, z, 7);
     g.wave(x, z, 1);
     sfx.boom(1.1, g.panOf(x, y, z));

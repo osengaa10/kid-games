@@ -2,7 +2,7 @@
 // the cache when there's no network (and refreshed from the network when there is).
 // The Kid Games app leaves this file out: there, everything is already on the iPad.
 // Adding a file? List it here and bump CACHE (test/sw.test.js checks the list).
-const CACHE = 'boom-blocks-v3';
+const CACHE = 'boom-blocks-v4';
 const FILES = [
   './',
   'index.html',
@@ -43,6 +43,7 @@ const FILES = [
   'js/fx/gpuParticles.js',
   'js/fx/shake.js',
   'js/physics/pieces.js',
+  'js/physics/spray.js',
   'js/physics/world.js',
   'js/render/blockMaterial.js',
   'js/render/island.js',

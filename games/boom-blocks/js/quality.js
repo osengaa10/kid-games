@@ -9,12 +9,14 @@ const ORDER = ['high', 'medium', 'low'];
 // sheen on the plastic (an environment map: the costliest thing per pixel; on an A16 iPad the
 // castle at 2x takes 27 ms a frame with it and 18 without, and Medium with it ran at 44 fps in
 // the stress test against Low's 55 without); awake: moving pieces the physics may juggle at once (what costs physics time); pieces:
-// loose pieces in all, moving or lying in the rubble (lying still costs almost nothing); crumbs
-// etc.: particle field sizes; wobble: shockwave jiggle on standing blocks.
+// loose pieces in all, moving or lying in the rubble (lying still costs almost nothing); spray:
+// loose single blocks out at once (a hit's spray and the rubble it piles into), sprayHit: how
+// many a frame's hits may throw; crumbs etc.: particle field sizes; wobble: shockwave jiggle on
+// standing blocks.
 export const TIERS = {
-  high: { name: 'high', pixelRatio: 2, reflections: true, shadows: 2048, softShadows: true, awake: 160, pieces: 400, crumbs: 9000, sparks: 1500, glow: 900, dust: 220, confetti: 1500, wobble: true },
-  medium: { name: 'medium', pixelRatio: 1.5, reflections: false, shadows: 1024, softShadows: true, awake: 110, pieces: 300, crumbs: 6000, sparks: 1000, glow: 600, dust: 140, confetti: 900, wobble: true },
-  low: { name: 'low', pixelRatio: 1.25, reflections: false, shadows: 1024, softShadows: false, awake: 70, pieces: 220, crumbs: 3500, sparks: 600, glow: 350, dust: 80, confetti: 500, wobble: false },
+  high: { name: 'high', pixelRatio: 2, reflections: true, shadows: 2048, softShadows: true, awake: 160, pieces: 400, spray: 6000, sprayHit: 2000, crumbs: 9000, sparks: 1500, glow: 900, dust: 220, confetti: 1500, wobble: true },
+  medium: { name: 'medium', pixelRatio: 1.5, reflections: false, shadows: 1024, softShadows: true, awake: 110, pieces: 300, spray: 4000, sprayHit: 1400, crumbs: 6000, sparks: 1000, glow: 600, dust: 140, confetti: 900, wobble: true },
+  low: { name: 'low', pixelRatio: 1.25, reflections: false, shadows: 1024, softShadows: false, awake: 70, pieces: 220, spray: 2500, sprayHit: 900, crumbs: 3500, sparks: 600, glow: 350, dust: 80, confetti: 500, wobble: false },
 };
 
 export const forcedTier = () => {

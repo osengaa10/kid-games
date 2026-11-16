@@ -20,6 +20,7 @@ import { Combo, COMBO_TIERS } from './core/combo.js';
 import { MATERIALS, MAT } from './core/materials.js';
 import { loadRapier, Physics } from './physics/world.js';
 import { Pieces } from './physics/pieces.js';
+import { BlockSpray } from './physics/spray.js';
 import { Fx, sunDirFrom } from './fx/effects.js';
 import { Destruction } from './destruction.js';
 import { Quality, FrameWatch, Governor, FrameStats } from './quality.js';
@@ -77,6 +78,23 @@ class Game {
     // Room to draw every block of a playground loose at once (plus the dominoes and crates), so
     // nothing ever has to vanish for lack of space. Only the used part is drawn.
     this.debris = new DebrisVoxels(this.scene, MAX_BLOCKS + 12000);
+    // Loose single blocks (a hit's spray and the rubble it piles into): their own pool and mesh,
+    // sized by the tier the game started on.
+    this.spray = new BlockSpray(this.grid, new DebrisVoxels(this.scene, this.quality.tier.spray), this.quality.tier.spray);
+    this.sprayMs = 0;
+    this.spray.events = {
+      clatter: (n, m, x, y, z) => {
+        if (this.time - (this.lastClatter ?? -1) < 0.08) return;
+        this.lastClatter = this.time;
+        sfx.crunch(Math.min(3, 0.3 + n * 0.15), MATERIALS[m].sound, this.panOf(x, y, z));
+      },
+      splash: (x, z) => {
+        if (this.time - (this.lastSplash ?? -1) < 0.15) return;
+        this.lastSplash = this.time;
+        this.fx.splash(x, z);
+        sfx.splash(this.panOf(x, 0, z));
+      },
+    };
     this.fx = new Fx(this.scene, this.camera, this.budget, sunDirFrom(this.sun));
     this.combo = new Combo();
     this.stats = new FrameStats();
@@ -368,6 +386,7 @@ class Game {
       this.fx.poof(t.x, t.y, t.z, p.colors[0]);
     }
     this.pieces.clear();
+    this.spray.clear();
     this.balloons.clear();
     for (const t of Object.values(this.tools)) {
       t.cancel?.();
@@ -475,13 +494,19 @@ class Game {
     }
   }
 
+  // A blast's shove: loose pieces and loose single blocks near it fly outward.
+  push(x, y, z, radius, strength, lift) {
+    this.pieces.blast(x, y, z, radius, strength, lift);
+    this.spray.blast(x, y, z, radius, strength, lift);
+  }
+
   // A crate of n (little) TNT blocks goes off: bigger crates, bigger bangs.
   tnt(x, y, z, little = PER) {
     const n = little / PER;
     const power = Math.min(1.3, 0.55 + n * 0.07);
     this.destruction.impact({ x, y, z, radius: Math.min(5.2, 2.6 + n * 0.3), power });
     this.fx.blast(x, y, z, power);
-    this.pieces.blast(x, y, z, 10 + n, 8, 0.9);
+    this.push(x, y, z, 10 + n, 8, 0.9);
     this.blastNear(x, y, z, 8 + n * 0.3);
     this.wave(x, z, power);
     sfx.boom(power, this.panOf(x, y, z));
@@ -626,8 +651,13 @@ class Game {
     this.destruction.update();
     this.physMs = tDest - tPhys;
     this.destMs = performance.now() - tDest;
+    const tSpray = performance.now();
+    this.spray.limit = Math.min(this.spray.capacity, this.quality.tier.spray);
+    this.spray.update(dt);
+    this.sprayMs = performance.now() - tSpray;
 
     this.pieces.sync();
+    this.spray.sync();
     this.statics.flush();
 
     // The rebuild drop-in, with rising plinks as the layers land.
@@ -657,7 +687,7 @@ class Game {
     // For the stress test: how long the frame took, and how much of it was our own work
     // (physics, the destruction code, telling the graphics chip what to draw). The rest is the
     // browser and the graphics chip.
-    this.onFrame?.(dtReal * 1000, { cpu: tEnd - t0, physics: this.physMs, destruction: this.destMs, draw: tEnd - tDraw, scene: SCENES[this.sceneIndex].id });
+    this.onFrame?.(dtReal * 1000, { cpu: tEnd - t0, physics: this.physMs, destruction: this.destMs, spray: this.sprayMs, draw: tEnd - tDraw, scene: SCENES[this.sceneIndex].id });
 
     this.hint(dtReal);
     if (this.statsOn && Math.floor(this.real * 4) !== this.statsTick) {
@@ -691,7 +721,8 @@ class Game {
     this.statsEl.textContent = [
       `fps ${s.fps.toFixed(0)}  avg ${s.avg.toFixed(1)}  p95 ${s.p95.toFixed(1)}  worst ${s.worst.toFixed(0)} ms`,
       `tier ${this.quality.name}  fx ${(this.fx.intensity * 100).toFixed(0)}%  ${this.canvas.width}×${this.canvas.height}`,
-      `blocks ${this.grid.count}  moving ${this.pieces.awakeCount}/${this.budget.awake}  pieces ${this.pieces.count}/${this.budget.pieces}  loose blocks ${this.debris.used}`,
+      `blocks ${this.grid.count}  moving ${this.pieces.awakeCount}/${this.budget.awake}  pieces ${this.pieces.count}/${this.budget.pieces}  in pieces ${this.debris.used}`,
+      `single blocks ${this.spray.count}/${this.spray.limit} (${this.spray.moving} moving)  ${this.sprayMs.toFixed(1)} ms`,
       `physics ${this.physMs.toFixed(1)} ms  draws ${info.calls}  tris ${(info.triangles / 1000).toFixed(0)}k`,
     ].join('\n');
   }
@@ -717,7 +748,7 @@ class Game {
         this.tool.release(sx, sy);
       },
       rebuild: (scene) => this.rebuild({ scene: scene ?? null }),
-      stats: () => ({ ...this.stats.summary(), blocks: this.grid.count, pieces: this.pieces.count, loose: this.debris.used, tier: this.quality.name, combo: COMBO_TIERS }),
+      stats: () => ({ ...this.stats.summary(), blocks: this.grid.count, pieces: this.pieces.count, loose: this.debris.used, spray: this.spray.count, sprayMoving: this.spray.moving, tier: this.quality.name, combo: COMBO_TIERS }),
       screenOf: (x, y, z) => this.screenOf(x, y, z),
       stress: () => this.panel.runOne(),
     };

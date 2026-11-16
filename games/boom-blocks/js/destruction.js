@@ -1,14 +1,17 @@
 // The heart of the game: what happens when something hits the blocks.
 //
-//   impact()  carves the hit: the core turns to crumbs, the shell around it breaks into chunks
-//             that fly off as real physics pieces.
+//   impact()  carves the hit: the middle is blown to dust and crumbs, and the rest of the hole
+//             flies off as the building's own blocks (loose single blocks, see physics/spray.js),
+//             fast from the middle and tumbling off the rim, with a few small chunks that are
+//             real physics pieces.
 //   update()  then, once a frame, checks the structure: anything no longer connected to the
-//             ground falls, and anything hanging on by a thin neck comes loose and topples.
-//   Pieces that land hard shatter into smaller pieces (big → medium → single blocks → crumbs),
-//   pieces that slam into standing blocks smash those too (chain reactions), TNT blocks go off,
-//   and gift blocks pop open with a surprise.
+//             ground falls, and anything hanging on by a thin neck comes loose and topples. A big
+//             section sheds blocks where it broke and cracks into a few lengths as it goes.
+//   Pieces that land hard burst: loose blocks where they hit, small chunks further along, and
+//   slabs that break again when they land. Pieces that slam into standing blocks smash those too
+//   (chain reactions), TNT blocks go off, and gift blocks pop open with a surprise.
 import { carveSphere, carveCapsule, carveColumn } from './core/carve.js';
-import { clumps } from './core/chunker.js';
+import { clumps, crackSection } from './core/chunker.js';
 import { shatterPlan } from './core/budget.js';
 import { MATERIALS, MAT } from './core/materials.js';
 import { BLOCK, cellX, cellY, cellZ, gridX, gridY, gridZ } from './core/grid.js';
@@ -23,6 +26,13 @@ const MAX_CHAINS_PER_FRAME = 4;
 // New physics pieces per frame: a big blast throws a few dozen real chunks and turns the rest to
 // crumbs (cheap particles), so one hit never costs the iPad a long frame.
 const MAX_NEW_PIECES_PER_FRAME = 70;
+// Small chunks (real physics pieces) a hit knocks off its rim: the rest of it flies as loose
+// single blocks.
+const CHUNKS_PER_HIT = 12;
+// A falling section bigger than this (little blocks) cracks into a few lengths.
+const CRACK_OVER = 600;
+// Bits of a cracked section smaller than this fall as loose single blocks.
+const BIT = 30;
 
 export class Destruction {
   constructor(game) {
@@ -37,6 +47,8 @@ export class Destruction {
     this.startBlocks = 1;
     this.celebrated = false;
     this.spawned = 0;
+    // Loose single blocks thrown this frame (a hit throws at most budget.sprayHit a frame).
+    this.sprayed = 0;
   }
 
   reset(blocks) {
@@ -80,17 +92,37 @@ export class Destruction {
     const { core, shell } = cut;
     if (!core.length && !shell.length) return 0;
 
-    // Glass never makes chunks, and when there's no room for more pieces the extras crumble.
+    // Glass never flies off whole: it shatters.
     const loose = [];
     for (const c of shell) (MATERIALS[grid.mat[c]].pulverize ? core : loose).push(c);
     // Rubble lying around the hit (maybe on the very blocks being knocked out) can move again.
     this.g.pieces.thawNear(x, y, z, radius * 1.6 + 2);
     // Ragged bits left hanging on by one side around the hole drop off too.
     if (!heat) this.dangling(core, loose, gx, gy, gz, gr * (shape === 'column' ? 2 : 1.9) + 1);
-    const smashed = this.smash(core, x, y, z, power, { quiet, heat });
-    const flung = this.fling(loose, x, y, z, power, dir, chunky);
-    const n = smashed + flung;
-    this.noteRegion(core.concat(loose));
+    const removed = core.concat(loose);
+    // The middle of a blast is blown to dust (and anything a laser melts); the rest of the hole
+    // flies off as its own blocks.
+    const dust = [];
+    const fly = [];
+    const inner = (gr * 0.45) ** 2;
+    for (const c of core) {
+      let gone = heat || MATERIALS[grid.mat[c]].pulverize;
+      if (!gone) {
+        if (shape === 'sphere') {
+          const dx = grid.cx(c) + 0.5 - gx;
+          const dy = grid.cy(c) + 0.5 - gy;
+          const dz = grid.cz(c) + 0.5 - gz;
+          gone = dx * dx + dy * dy + dz * dz < inner;
+        } else gone = rand() < 0.25;
+      }
+      (gone ? dust : fly).push(c);
+    }
+    // A few small chunks from the rim; the rest of the rim flies as single blocks too.
+    for (const c of this.chunks(loose, x, y, z, power, dir, chunky)) fly.push(c);
+    for (const c of this.sprayCells(fly, x, y, z, radius, power, dir)) dust.push(c);
+    this.smash(dust, x, y, z, power, { quiet, heat });
+    const n = removed.length;
+    this.noteRegion(removed);
     this.g.onBroke(n, x, y, z, quiet);
     return n;
   }
@@ -165,9 +197,10 @@ export class Destruction {
     }
   }
 
-  // Breaks loose cells into chunks and throws them away from (x, y, z).
-  fling(cells, x, y, z, power, dir, chunky = 1) {
-    if (!cells.length) return 0;
+  // A few small chunks (real physics pieces: they tumble and knock into things) from cells knocked
+  // loose, thrown away from (x, y, z). Returns the cells left over.
+  chunks(cells, x, y, z, power, dir, chunky = 1) {
+    if (!cells.length) return cells;
     const { grid, pieces, rand } = this.g;
     const n = cells.length;
     const xs = new Int16Array(n);
@@ -180,19 +213,19 @@ export class Destruction {
       zs[i] = grid.cz(cells[i]);
       groups[i] = grid.mat[cells[i]];
     }
-    // Chunks from 3 to about 18 little blocks: lots of small pieces flying.
-    const lo = Math.max(1, Math.round(3 * chunky));
-    const hi = Math.max(lo, Math.round(18 * chunky));
+    // Chunks of 2 to 6 little blocks.
+    const lo = Math.max(2, Math.round(2 * chunky));
+    const hi = Math.max(lo, Math.round(6 * chunky));
     const groupsOut = clumps(xs, ys, zs, lo, hi, rand, groups);
-    const room = Math.min(pieces.awakeRoom, MAX_NEW_PIECES_PER_FRAME - this.spawned);
-    // Biggest clumps become pieces; the rest crumble.
+    const room = Math.min(pieces.awakeRoom, MAX_NEW_PIECES_PER_FRAME - this.spawned, Math.round(CHUNKS_PER_HIT * chunky));
+    // The biggest clumps become pieces; the rest is left over.
     groupsOut.sort((a, b) => b.length - a.length);
-    const crumble = [];
+    const left = [];
     for (let k = 0; k < groupsOut.length; k++) {
       const idx = groupsOut[k];
       const part = idx.map((i) => cells[i]);
       if (k >= room) {
-        crumble.push(...part);
+        for (const c of part) left.push(c);
         continue;
       }
       let px = 0;
@@ -225,14 +258,130 @@ export class Destruction {
       const spin = 7 * power;
       const piece = pieces.fromGrid(grid, part, { vx, vy, vz, ax: (rand() - 0.5) * spin, ay: (rand() - 0.5) * spin, az: (rand() - 0.5) * spin }, { inner: true });
       if (!piece) {
-        crumble.push(...part);
+        for (const c of part) left.push(c);
         continue;
       }
       this.spawned++;
       for (const c of part) this.remove(c, true);
     }
-    if (crumble.length) this.smash(crumble, x, y, z, power, { quiet: true });
-    return n;
+    return left;
+  }
+
+  // Throws standing cells off as loose single blocks, flying out from (x, y, z): fast from the
+  // middle of the hit, slow at its edge (so the rim slumps and tumbles off), pushed along `dir`
+  // when the hit has one. As many as this frame's allowance and the pool allow; returns the rest.
+  sprayCells(cells, x, y, z, radius, power, dir) {
+    if (!cells.length) return cells;
+    const { grid, spray, rand, budget, fx } = this.g;
+    let room = Math.max(0, Math.round(budget.sprayHit * fx.intensity) - this.sprayed);
+    // Not room for all: take them from all over the hole.
+    if (cells.length > room) {
+      for (let i = cells.length - 1; i > 0; i--) {
+        const j = Math.floor(rand() * (i + 1));
+        const t = cells[i];
+        cells[i] = cells[j];
+        cells[j] = t;
+      }
+    }
+    const left = [];
+    const reach = radius * 1.6;
+    const tally = new Map();
+    let dust = 0;
+    let sx = 0;
+    let sy = 0;
+    let sz = 0;
+    let k = 0;
+    for (const c of cells) {
+      const m = grid.mat[c];
+      if (!m) continue;
+      if (room <= 0) {
+        left.push(c);
+        continue;
+      }
+      const px = cellX(grid.cx(c));
+      const py = cellY(grid.cy(c));
+      const pz = cellZ(grid.cz(c));
+      let ax = px - x;
+      let ay = py - y;
+      let az = pz - z;
+      const d = Math.hypot(ax, ay, az) || 1;
+      ax /= d;
+      ay /= d;
+      az /= d;
+      const f = Math.min(1, d / reach);
+      const speed = power * ((9 + rand() * 9) * (1 - f) + (2 + rand() * 3) * f);
+      let vx = (ax + (rand() - 0.5) * 0.7) * speed;
+      let vy = (ay * 0.6 + 0.5 + (rand() - 0.5) * 0.5) * speed;
+      let vz = (az + (rand() - 0.5) * 0.7) * speed;
+      if (dir) {
+        vx = vx * 0.5 + dir.x * speed * 0.8;
+        vy = vy * 0.6 + (dir.y + 0.3) * speed * 0.5;
+        vz = vz * 0.5 + dir.z * speed * 0.8;
+      }
+      if (!spray.emit(px, py, pz, vx, vy, vz, grid.color[c], m, null, 3 + 10 * power * (1 - f * 0.6))) {
+        left.push(c);
+        room = 0;
+        continue;
+      }
+      room--;
+      this.sprayed++;
+      const mat = MATERIALS[m];
+      tally.set(mat.sound, (tally.get(mat.sound) || 0) + 1);
+      dust += mat.dust;
+      sx += px;
+      sy += py;
+      sz += pz;
+      k++;
+      this.remove(c);
+    }
+    if (k) {
+      const pan = this.g.panOf(x, y, z);
+      for (const [family, n] of tally) sfx.crunch(n / PER, family, pan);
+      const amount = (dust / PER) * 0.5;
+      if (amount > 0.5) fx.dustCloud(sx / k, sy / k, sz / k, Math.min(14, 2 + amount * 0.3), 3 + Math.sqrt(k / PER) * 0.5, grid.color[cells[0]] || 0xddcbb0, { rise: 1.5, size: 2.2, life: 2.2 });
+    }
+    return left;
+  }
+
+  // Throws blocks of a piece off as loose single blocks (k: block indices, world positions in
+  // wx/wy/wz): each keeps the piece's turn and the speed of its spot on the piece, plus a kick
+  // away from (hx, hy, hz). Returns the indices there wasn't room for.
+  sprayPiece(p, ks, wx, wy, wz, hx, hy, hz, kick) {
+    const { spray, rand, budget, fx } = this.g;
+    let room = Math.max(0, Math.round(budget.sprayHit * fx.intensity) - this.sprayed);
+    const left = [];
+    const t = p.body.translation();
+    const q = p.body.rotation();
+    const v = p.body.linvel();
+    const w = p.body.angvel();
+    for (const k of ks) {
+      if (room <= 0) {
+        left.push(k);
+        continue;
+      }
+      const rx = wx[k] - t.x;
+      const ry = wy[k] - t.y;
+      const rz = wz[k] - t.z;
+      let ox = wx[k] - hx;
+      let oy = wy[k] - hy;
+      let oz = wz[k] - hz;
+      const d = Math.hypot(ox, oy, oz) || 1;
+      ox /= d;
+      oy /= d;
+      oz /= d;
+      const s = kick * (0.4 + 0.6 * rand());
+      const vx = v.x + (w.y * rz - w.z * ry) + (ox + (rand() - 0.5) * 0.6) * s;
+      const vy = v.y + (w.z * rx - w.x * rz) + (Math.max(0, oy) * 0.5 + 0.4 + rand() * 0.4) * s;
+      const vz = v.z + (w.x * ry - w.y * rx) + (oz + (rand() - 0.5) * 0.6) * s;
+      if (!spray.emit(wx[k], wy[k], wz[k], vx, vy, vz, p.colors[k], p.mats[k], q, 3 + kick * 0.6)) {
+        left.push(k);
+        room = 0;
+        continue;
+      }
+      room--;
+      this.sprayed++;
+    }
+    return left;
   }
 
   // Takes one block out of the standing structure everywhere it lives: the grid, the drawn
@@ -248,6 +397,8 @@ export class Destruction {
     grid.remove(c);
     statics.remove(c);
     physics.removeCell(x, y, z);
+    // Loose blocks lying on it fall.
+    this.g.spray.groundChanged();
     const { sx, sz, sy, layer, mat } = grid;
     // Neighbors become seeds for the structure check, and any that were buried come into view.
     const near = (n) => {
@@ -327,11 +478,13 @@ export class Destruction {
     this.regions.push({ x0, y0, z0, x1, y1, z1 });
   }
 
-  // Cuts a set of still-standing cells loose as one piece. topple: the damaged region, so the
-  // piece leans toward the side that lost its support.
+  // Cuts a set of still-standing cells loose: it falls. topple: the damaged region, so it leans
+  // toward the side that lost its support. Where it broke it crumbles (blocks next to the damage
+  // fall off on their own), and a big section cracks into a few lengths that all start falling
+  // as one and come apart as they go.
   detach(cells, topple = null) {
-    const { grid, pieces } = this.g;
-    let motion = { vx: 0, vy: 0, vz: 0 };
+    const { grid, pieces, rand } = this.g;
+    let motion = { vx: 0, vy: 0, vz: 0, ax: 0, ay: 0, az: 0 };
     if (topple) {
       // Tip it over toward the damage, pivoting on its base edge on that side: the spin and the
       // sideways speed have to match that pivot, or the base just grinds into the stump.
@@ -380,25 +533,207 @@ export class Destruction {
       const rz = -dz * reach;
       motion = { vx: -az * ry, vy: az * rx - ax * rz, vz: ax * ry, ax, ay: 0, az };
     }
-    const piece = pieces.fromGrid(grid, cells, motion, { gen: 0 });
-    if (!piece) {
-      // No room to draw it: it crumbles instead.
-      const c = cells[0];
-      this.smash(cells.slice(0, 1500), cellX(grid.cx(c)), cellY(grid.cy(c)), cellZ(grid.cz(c)), 0.5, { quiet: true });
-      for (const c2 of cells) this.remove(c2);
-      return;
+    // How a spot on the falling section moves: its centre's speed plus the turn.
+    let mx = 0;
+    let my = 0;
+    let mz = 0;
+    for (const c of cells) {
+      mx += cellX(grid.cx(c));
+      my += cellY(grid.cy(c));
+      mz += cellZ(grid.cz(c));
     }
-    for (const c of cells) this.remove(c, true);
-    sfx.crunch(Math.min(30, cells.length / PER / 6), MATERIALS[piece.main].sound, this.g.panOf(piece.body.translation()));
+    mx /= cells.length;
+    my /= cells.length;
+    mz /= cells.length;
+    const wx = motion.ax || 0;
+    const wy = motion.ay || 0;
+    const wz = motion.az || 0;
+    const velAt = (px, py, pz) => {
+      const rx = px - mx;
+      const ry = py - my;
+      const rz = pz - mz;
+      return [motion.vx + (wy * rz - wz * ry), motion.vy + (wz * rx - wx * rz), motion.vz + (wx * ry - wy * rx)];
+    };
+    // Shed: next to the damage it crumbles.
+    let keep = cells;
+    const loose = [];
+    if (topple) {
+      keep = [];
+      const m = 2;
+      const limit = Math.min(500, Math.floor(cells.length * 0.25));
+      for (const c of cells) {
+        const x = grid.cx(c);
+        const y = grid.cy(c);
+        const z = grid.cz(c);
+        const near = x >= topple.x0 - m && x <= topple.x1 + m && y >= topple.y0 - m && y <= topple.y1 + m && z >= topple.z0 - m && z <= topple.z1 + m;
+        if (near && loose.length < limit && rand() < 0.75) loose.push(c);
+        else keep.push(c);
+      }
+    }
+    // Crack: a few lengths if it's big and there's room for them to move; bits left on their own
+    // (shedding can leave some) fall as single blocks.
+    // What's left falls as one piece (or a few, if shedding cut it in two); bits left on their
+    // own fall as single blocks. A big one cracks into lengths a moment later (crack()).
+    const n = keep.length;
+    const xs = new Int16Array(n);
+    const ys = new Int16Array(n);
+    const zs = new Int16Array(n);
+    for (let i = 0; i < n; i++) {
+      xs[i] = grid.cx(keep[i]);
+      ys[i] = grid.cy(keep[i]);
+      zs[i] = grid.cz(keep[i]);
+    }
+    const parts = loose.length ? crackSection(xs, ys, zs, 1, rand).parts : [Array.from({ length: n }, (_, i) => i)];
+    const split = parts.length > 1 || loose.length > 0;
+    let main = null;
+    for (const part of parts) {
+      const pc = part.map((i) => keep[i]);
+      if (split && pc.length < BIT) {
+        for (const c of pc) loose.push(c);
+        continue;
+      }
+      let px = 0;
+      let py = 0;
+      let pz = 0;
+      for (const c of pc) {
+        px += cellX(grid.cx(c));
+        py += cellY(grid.cy(c));
+        pz += cellZ(grid.cz(c));
+      }
+      const [vx, vy, vz] = velAt(px / pc.length, py / pc.length, pz / pc.length);
+      const piece = pieces.fromGrid(grid, pc, { vx, vy, vz, ax: wx, ay: wy, az: wz }, { gen: 0, inner: split });
+      if (!piece) {
+        for (const c of pc) loose.push(c);
+        continue;
+      }
+      this.spawned++;
+      main ||= piece;
+      for (const c of pc) this.remove(c, true);
+      if (pc.length > CRACK_OVER) {
+        piece.crackAt = this.g.time + 0.12 + rand() * 0.08;
+        piece.crackParts = Math.min(4, 2 + Math.floor(pc.length / 4000));
+        piece.crackLag = !!topple;
+      }
+    }
+    if (loose.length) {
+      const left = this.sprayFalling(loose, velAt);
+      if (left.length) {
+        // No room to show them at all: they crumble.
+        const c = left[0];
+        this.smash(left.slice(0, 1500), cellX(grid.cx(c)), cellY(grid.cy(c)), cellZ(grid.cz(c)), 0.5, { quiet: true });
+        for (const c2 of left) this.remove(c2);
+      }
+    }
+    const family = MATERIALS[main ? main.main : grid.mat[cells[0]] || MAT.PLASTIC]?.sound || 'plastic';
+    sfx.crunch(Math.min(30, cells.length / PER / 6), family, this.g.panOf(mx, my, mz));
   }
 
-  // A piece hit something hard enough to break apart. It breaks where it hit: small bits and
-  // crumbs right at the impact, medium chunks a little further along, and the far end stays in
-  // a few big slabs that carry on falling and break when they land themselves. So a toppling
-  // tower crumbles along its length as it comes down. No block is ever thrown away: when
-  // there's little room for new pieces, the pieces just come out bigger.
+  // A falling section cracks into a few lengths, a moment after it came loose: each length
+  // carries on with the speed of its spot on the section, and on a toppling tower the higher ones
+  // lag behind the turn (they can't keep up), so it visibly comes apart at the cracks. Some
+  // blocks along the cracks crumble out as single blocks.
+  crack(p) {
+    p.crackAt = 0;
+    const { pieces, rand } = this.g;
+    const room = Math.min(p.crackParts, Math.max(0, pieces.awakeRoom) + 1, MAX_NEW_PIECES_PER_FRAME - this.spawned);
+    if (room < 2) return;
+    const { parts, seam } = crackSection(p.xs, p.ys, p.zs, room, rand, { seam: 0.6, seamMax: 400 });
+    if (parts.length < 2) return;
+    const n = p.n;
+    const wx = new Float32Array(n);
+    const wy = new Float32Array(n);
+    const wz = new Float32Array(n);
+    pieces.eachBlock(p, (x, y, z, k) => {
+      wx[k] = x;
+      wy[k] = y;
+      wz[k] = z;
+    });
+    let y0 = Infinity;
+    let y1 = -Infinity;
+    for (let k = 0; k < n; k++) {
+      if (p.ys[k] < y0) y0 = p.ys[k];
+      if (p.ys[k] > y1) y1 = p.ys[k];
+    }
+    const t = p.body.translation();
+    const v = p.body.linvel();
+    const w = p.body.angvel();
+    const bits = [...seam];
+    let made = 0;
+    for (const part of parts) {
+      if (part.length < BIT || made >= room) {
+        for (const k of part) bits.push(k);
+        continue;
+      }
+      let rx = 0;
+      let ry = 0;
+      let rz = 0;
+      let ly = 0;
+      for (const k of part) {
+        rx += wx[k];
+        ry += wy[k];
+        rz += wz[k];
+        ly += p.ys[k];
+      }
+      const m = part.length;
+      rx = rx / m - t.x;
+      ry = ry / m - t.y;
+      rz = rz / m - t.z;
+      // This spot's speed on the turning section, and how much of it the length keeps.
+      const vx = v.x + (w.y * rz - w.z * ry);
+      const vy = v.y + (w.z * rx - w.x * rz);
+      const vz = v.z + (w.x * ry - w.y * rx);
+      const up = (ly / m - y0) / Math.max(1, y1 - y0);
+      const lose = p.crackLag ? 0.3 * up : 0;
+      const kick = { vx: -lose * vx + (rand() - 0.5) * 0.8, vy: -lose * vy, vz: -lose * vz + (rand() - 0.5) * 0.8, ax: -lose * w.x, ay: -lose * w.y, az: -lose * w.z };
+      if (pieces.fromPiece(p, part, kick, { gen: p.gen, inner: true })) {
+        made++;
+        this.spawned++;
+      } else for (const k of part) bits.push(k);
+    }
+    const left = this.sprayPiece(p, bits, wx, wy, wz, t.x, t.y, t.z, 1.5);
+    for (const k of left) this.g.fx.crumble(wx[k], wy[k], wz[k], p.colors[k], p.mats[k], t.x, t.y, t.z, 0.3);
+    sfx.crunch(Math.min(20, n / PER / 8), MATERIALS[p.main].sound, this.g.panOf(t));
+    pieces.remove(p);
+  }
+
+  // Standing cells that fall off with a moving section, as loose single blocks moving with it
+  // (velAt gives the section's speed at a spot) plus a little jostle. Returns the ones there's
+  // no room for.
+  sprayFalling(cells, velAt) {
+    const { grid, spray, rand, budget, fx } = this.g;
+    let room = Math.max(0, Math.round(budget.sprayHit * fx.intensity) - this.sprayed);
+    const left = [];
+    for (const c of cells) {
+      const m = grid.mat[c];
+      if (!m) continue;
+      if (room <= 0) {
+        left.push(c);
+        continue;
+      }
+      const px = cellX(grid.cx(c));
+      const py = cellY(grid.cy(c));
+      const pz = cellZ(grid.cz(c));
+      const [vx, vy, vz] = velAt(px, py, pz);
+      if (!spray.emit(px, py, pz, vx + (rand() - 0.5) * 1.6, vy + rand() * 0.8, vz + (rand() - 0.5) * 1.6, grid.color[c], m, null, 3)) {
+        left.push(c);
+        room = 0;
+        continue;
+      }
+      room--;
+      this.sprayed++;
+      this.remove(c);
+    }
+    return left;
+  }
+
+  // A piece hit something hard enough to break apart. It breaks where it hit: its own blocks
+  // burst off loose right at the impact, small chunks a little further along, and the far end
+  // breaks into slabs that carry on falling and break again when they land themselves. So a
+  // toppling tower bursts along its length as it comes down. No block is ever thrown away: when
+  // there's little room, the pieces just come out bigger.
   // opts (for bites): point = where it was hit, near/mid = zone sizes, vaporize = the near zone
-  // turns to crumbs, keepGen = the new pieces can still break on landing.
+  // turns to crumbs (or, with spray, to loose blocks), keepGen = the new pieces can still break
+  // on landing.
   shatter(p, dv, opts = {}) {
     if (p.dead) return;
     const { pieces, rand, fx, time } = this.g;
@@ -428,9 +763,15 @@ export class Destruction {
     const hz = at ? at.z : recent ? p.hitZ : wz[low];
     const dist = new Float32Array(n);
     for (let k = 0; k < n; k++) dist[k] = Math.hypot(wx[k] - hx, wy[k] - hy, wz[k] - hz);
-    const room = Math.max(1, Math.min(pieces.awakeRoom + 1, MAX_NEW_PIECES_PER_FRAME - this.spawned));
-    const near = opts.near ?? Math.min(6, 2.5 + Math.sqrt(eq) * 0.06);
-    const plan = shatterPlan(dist, room, { near, mid: opts.mid ?? near + 5, eq: opts.near ? Infinity : eq });
+    let room = Math.max(1, Math.min(pieces.awakeRoom + 1, MAX_NEW_PIECES_PER_FRAME - this.spawned));
+    // A fallen section's first landing always breaks it into a few slabs at least, even when
+    // lots is moving already (the moving-pieces cap then freezes the slowest to make up).
+    const section = p.gen === 0 && eq > 150;
+    if (section) room = Math.max(room, 5);
+    // (A section bursts over more of its length.)
+    const near = opts.near ?? (section ? Math.min(9, 4.5 + Math.sqrt(eq) * 0.12) : Math.min(8, 3.5 + Math.sqrt(eq) * 0.08));
+    const crumbsOnly = opts.vaporize && !opts.spray;
+    const plan = shatterPlan(dist, room, { near, mid: opts.mid ?? near + 4, eq: opts.near ? Infinity : eq, sprayNear: !crumbsOnly });
     // Clump each zone on its own.
     const zones = [[], [], []];
     for (let k = 0; k < n; k++) zones[plan.zone[k]].push(k);
@@ -441,15 +782,18 @@ export class Destruction {
       const sub = (arr) => idx.map((k) => arr[k]);
       for (const c of clumps(sub(p.xs), sub(p.ys), sub(p.zs), lo, hi, rand, sub(p.mats))) parts.push({ idx: c.map((j) => idx[j]), zone: z });
     });
-    // Little bits right at the impact turn to crumbs, but only as many as can be shown this
-    // frame: the rest stay real pieces.
-    const crumbShare = Math.min(0.3, 0.08 + p.gen * 0.06 + dv * 0.004);
+    // Right at the impact it bursts into its own blocks, flying loose (a laser's bite melts to
+    // crumbs instead, as many as can be shown this frame). Any there's no room for stay small
+    // chunks.
     const crumbRoom = Math.floor(fx.crumbBudget * 0.7);
     const dust = [];
     const kept = [];
+    const burst = [];
     for (const part of parts) {
-      const crumb = opts.vaporize ? part.zone === 0 : part.zone === 0 && part.idx.length <= 12 && rand() < crumbShare * 2;
-      if (crumb && dust.length + part.idx.length <= crumbRoom) dust.push(...part.idx);
+      if (crumbsOnly && part.zone === 0) {
+        if (dust.length + part.idx.length <= crumbRoom) dust.push(...part.idx);
+        else kept.push(part);
+      } else if (!crumbsOnly && (part.zone === 0 || part.idx.length <= 2)) burst.push(...part.idx);
       else kept.push(part);
     }
     // A TNT block in the piece goes off as it breaks.
@@ -467,6 +811,16 @@ export class Destruction {
       fx.bursts.ring(hx, 0.1, hz, 8 + Math.sqrt(eq) * 0.2, { color: 0xffffff, life: 0.55, width: 0.22, alpha: 0.6 });
       fx.shake.add(Math.min(0.45, 0.12 + eq / 5000));
       this.g.wave(hx, hz, Math.min(1.2, eq / 1500));
+    }
+    // A big landing jolts the loose blocks lying around it.
+    if (eq > 20 && !opts.vaporize) this.g.spray.blast(hx, hy, hz, 2 + Math.sqrt(eq) * 0.3, Math.min(8, 2 + dv * 0.15), 0.7);
+    if (burst.length) {
+      const kick = opts.vaporize ? 3 + dv * 0.1 : Math.min(9, 2 + dv * 0.25);
+      const missed = this.sprayPiece(p, burst, wx, wy, wz, hx, hy, hz, kick);
+      if (missed.length) {
+        const sub = (arr) => missed.map((k) => arr[k]);
+        for (const c of clumps(sub(p.xs), sub(p.ys), sub(p.zs), 6, 24, rand, sub(p.mats))) kept.push({ idx: c.map((j) => missed[j]), zone: 0 });
+      }
     }
     // New pieces keep the motion of the spot they came from (so the far end keeps swinging
     // down); the ones at the impact also get knocked outward.
@@ -487,8 +841,9 @@ export class Destruction {
       ox /= d;
       oy /= d;
       oz /= d;
-      const kick = part.zone === 0 ? Math.min(9, 2 + dv * 0.25) : part.zone === 1 ? Math.min(4, 1 + dv * 0.1) : 0;
-      const spin = part.zone === 0 ? 4 : part.zone === 1 ? 1.5 : 0;
+      // (The far slabs get a nudge apart too, so they come to rest as separate lumps.)
+      const kick = part.zone === 0 ? Math.min(9, 2 + dv * 0.25) : part.zone === 1 ? Math.min(4, 1 + dv * 0.1) : Math.min(2, dv * 0.06);
+      const spin = part.zone === 0 ? 4 : part.zone === 1 ? 1.5 : 0.6;
       const motion = { vx: ox * kick * (0.6 + 0.4 * rand()), vy: kick * (0.3 + 0.5 * rand()) + Math.max(0, oy) * kick * 0.3, vz: oz * kick * (0.6 + 0.4 * rand()), ax: (rand() - 0.5) * spin, ay: (rand() - 0.5) * spin, az: (rand() - 0.5) * spin };
       if (pieces.fromPiece(p, part.idx, motion, { gen: opts.keepGen ? p.gen : p.gen + 1, lift, inner: true })) this.spawned++;
       else for (const k of part.idx) fx.crumble(wx[k], wy[k], wz[k], p.colors[k], p.mats[k], hx, hy, hz, 0.4);
@@ -505,9 +860,10 @@ export class Destruction {
   }
 
   // Takes a bite out of a loose piece (rubble, a fallen tower, frozen or not) at `point`: little
-  // pieces turn to crumbs, bigger ones lose the blocks within `radius` (as crumbs) and the rest
-  // carries on as pieces. This is how tools chew through rubble instead of just pushing it.
-  bite(p, point, radius, power = 0.5) {
+  // pieces come apart, bigger ones lose the blocks within `radius` and the rest carries on as
+  // pieces. spray: what comes off flies as loose blocks (a blast); otherwise it turns to crumbs
+  // (the laser). This is how tools chew through rubble instead of just pushing it.
+  bite(p, point, radius, power = 0.5, { spray = false } = {}) {
     if (!p || p.dead) return false;
     const { pieces, time, fx } = this.g;
     if (time - (p.lastBite ?? -1) < 0.15) return false;
@@ -515,17 +871,25 @@ export class Destruction {
     pieces.thaw(p);
     if (p.n <= 24) {
       let tnt = null;
+      const wx = new Float32Array(p.n);
+      const wy = new Float32Array(p.n);
+      const wz = new Float32Array(p.n);
       pieces.eachBlock(p, (x, y, z, k) => {
-        fx.crumble(x, y, z, p.colors[k], p.mats[k], point.x, point.y, point.z, 0.4 + power * 0.4);
+        wx[k] = x;
+        wy[k] = y;
+        wz[k] = z;
         if (p.mats[k] === MAT.TNT) tnt = [x, y, z];
       });
+      const all = Array.from({ length: p.n }, (_, k) => k);
+      const left = spray ? this.sprayPiece(p, all, wx, wy, wz, point.x, point.y, point.z, 3 + power * 6) : all;
+      for (const k of left) fx.crumble(wx[k], wy[k], wz[k], p.colors[k], p.mats[k], point.x, point.y, point.z, 0.4 + power * 0.4);
       sfx.crunch(p.n / PER + 1, MATERIALS[p.main].sound, this.g.panOf(point));
       pieces.remove(p);
       this.g.onBroke(p.n, point.x, point.y, point.z, true);
       if (tnt) this.tntQueue.push(tnt);
       return true;
     }
-    this.shatter(p, 12 + power * 6, { point, near: radius, mid: radius * 2.5, vaporize: true, keepGen: true });
+    this.shatter(p, 12 + power * 6, { point, near: radius, mid: radius * 2.5, vaporize: true, keepGen: true, spray });
     return true;
   }
 
@@ -548,13 +912,14 @@ export class Destruction {
       if (best <= radius) hits.push([best, p]);
     }
     hits.sort((a, b) => a[0] - b[0]);
-    for (const [, p] of hits.slice(0, max)) this.bite(p, { x, y, z }, radius, power);
+    for (const [, p] of hits.slice(0, max)) this.bite(p, { x, y, z }, radius, power, { spray: true });
   }
 
   // Once a frame: structure checks, queued shatters and chain hits, fuses.
   update() {
     const { structure, time } = this.g;
     this.spawned = 0;
+    this.sprayed = 0;
     if (this.seeds.length) {
       const seeds = this.seeds;
       this.seeds = [];
@@ -564,6 +929,13 @@ export class Destruction {
       const region = this.regions.shift();
       for (const weak of structure.weakNecks(region, { step: 2, minMass: 40 })) {
         if (weak.cells.every((c) => this.g.grid.mat[c])) this.detach(weak.cells, region);
+      }
+    }
+    // At most one section cracks a frame (it's a lot of work).
+    for (const p of this.g.pieces.list) {
+      if (p.crackAt && time >= p.crackAt && !p.dead) {
+        this.crack(p);
+        break;
       }
     }
     for (let k = 0; k < MAX_SHATTERS_PER_FRAME && this.shatters.length; k++) {

@@ -108,7 +108,7 @@ export class Bomb {
     // A rising smoke column.
     g.fx.dustCloud(p.x, p.y + 2, p.z, 14, 2.5, 0x9a9aa8, { rise: 10, size: 3.6, life: 3.2 });
     // Throws everything nearby UP.
-    g.pieces.blast(p.x, p.y, p.z, 17, 11, 1.6);
+    g.push(p.x, p.y, p.z, 17, 11, 1.6);
     g.blastNear(p.x, p.y, p.z, 12);
     g.wave(p.x, p.z, 1.4);
     g.fx.shake.add(0.3);

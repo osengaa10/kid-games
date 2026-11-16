@@ -17,9 +17,11 @@ export async function runStress(game, seconds = 60) {
   game.stressing = true;
   let maxPieces = 0;
   let maxAwake = 0;
+  let maxSpray = 0;
   const sample = setInterval(() => {
     maxPieces = Math.max(maxPieces, game.pieces.count);
     maxAwake = Math.max(maxAwake, game.pieces.awakeCount);
+    maxSpray = Math.max(maxSpray, game.spray.count);
   }, 100);
   // Two and a half minutes of nobody touching the screen: ask for it to stay on, or Auto-Lock
   // can switch it off halfway (and a locked iPad stops drawing frames).
@@ -73,16 +75,17 @@ export async function runStress(game, seconds = 60) {
     const v = frameLog.map((f) => f[key] || 0).sort((a, b) => a - b);
     return v[Math.floor(v.length * 0.95)] || 0;
   };
-  // Where a frame's time goes: our physics, the rest of the destruction code, telling the
-  // graphics chip what to draw, everything else we do; and what's left of the frame after all
-  // our own work, which is the graphics chip (and the browser) catching up.
+  // Where a frame's time goes: our physics, the rest of the destruction code, the loose single
+  // blocks, telling the graphics chip what to draw, everything else we do; and what's left of the
+  // frame after all our own work, which is the graphics chip (and the browser) catching up.
   const cpu = mean('cpu');
   const breakdown = {
     physics: mean('physics'),
     physicsP95: p95('physics'),
     destruction: mean('destruction'),
+    spray: mean('spray'),
     draw: mean('draw'),
-    other: Math.max(0, cpu - mean('physics') - mean('destruction') - mean('draw')),
+    other: Math.max(0, cpu - mean('physics') - mean('destruction') - mean('spray') - mean('draw')),
     cpu,
     cpuP95: p95('cpu'),
     graphics: Math.max(0, avg - cpu),
@@ -104,6 +107,7 @@ export async function runStress(game, seconds = 60) {
     tier: game.quality.name,
     maxPieces,
     maxAwake,
+    maxSpray,
     breakdown,
     perScene,
   };

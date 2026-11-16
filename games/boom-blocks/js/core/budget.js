@@ -31,8 +31,10 @@ export const tidy = (p) => p.blocks <= TIDY_MAX_BLOCKS && p.asleepFor >= TIDY_AF
 //   zone 2, far away: a few big slabs that keep falling and break when they land themselves
 // room: how many new pieces there's room for. Clumps grow until the expected count fits, so
 // nothing ever has to be thrown away. eq: the piece's size in old-size blocks (small pieces just
-// break into small bits). Returns { zone (per block), sizes: [[lo, hi] ×3], counts, pieces }.
-export function shatterPlan(dist, room, { near = 3, mid = 8, eq = Infinity } = {}) {
+// break into small bits). sprayNear: zone 0 flies apart as single loose blocks (not physics
+// pieces), so it doesn't count against the room. Returns { zone (per block), sizes: [[lo, hi]
+// ×3], counts, pieces }.
+export function shatterPlan(dist, room, { near = 3, mid = 8, eq = Infinity, sprayNear = false } = {}) {
   const n = dist.length;
   const zone = new Uint8Array(n);
   const counts = [0, 0, 0];
@@ -42,24 +44,25 @@ export function shatterPlan(dist, room, { near = 3, mid = 8, eq = Infinity } = {
     zone[i] = z;
     counts[z]++;
   }
-  const slabs = Math.max(1, Math.min(4, Math.ceil(counts[2] / 1500)));
+  // The far end breaks into slabs of about 300 blocks (up to 10), so they come apart again when
+  // they land themselves instead of tumbling on as one big lump.
+  const slabs = Math.max(1, Math.min(10, Math.ceil(counts[2] / 300)));
   const farSize = Math.max(1, Math.round(counts[2] / slabs));
-  let sizes = [small ? [1, 5] : [6, 24], [40, 160], [Math.max(1, Math.round(farSize * 0.7)), Math.max(1, Math.round(farSize * 1.3))]];
-  const expected = (s) => counts.reduce((sum, c, z) => sum + (c ? Math.ceil(c / ((s[z][0] + s[z][1]) / 2)) : 0), 0);
+  let sizes = [small ? [1, 5] : [6, 24], [8, 30], [Math.max(1, Math.round(farSize * 0.7)), Math.max(1, Math.round(farSize * 1.3))]];
+  const expected = (s) => counts.reduce((sum, c, z) => sum + (c && !(sprayNear && z === 0) ? Math.ceil(c / ((s[z][0] + s[z][1]) / 2)) : 0), 0);
   room = Math.max(1, room);
   // Not enough room: make the near and middle pieces bigger, a step at a time.
   for (let k = 0; k < 8 && expected(sizes) > room; k++) sizes = [sizes[0].map((v) => v * 2), sizes[1].map((v) => v * 2), sizes[2]];
-  // Still too many: the whole thing becomes `room` even slabs.
+  // Still too many: everything but the sprayed near end becomes `room` even slabs (the near end
+  // still bursts: loose blocks need no room).
   if (expected(sizes) > room) {
-    zone.fill(2);
-    counts[0] = counts[1] = 0;
-    counts[2] = n;
-    const size = Math.max(1, Math.ceil(n / room));
-    sizes = [
-      [size, size],
-      [size, size],
-      [size, size],
-    ];
+    const keepNear = sprayNear && counts[0] > 0;
+    for (let i = 0; i < n; i++) if (!(keepNear && zone[i] === 0)) zone[i] = 2;
+    if (!keepNear) counts[0] = 0;
+    counts[1] = 0;
+    counts[2] = n - counts[0];
+    const size = Math.max(1, Math.ceil(counts[2] / room));
+    sizes = [keepNear ? sizes[0] : [size, size], [size, size], [size, size]];
   }
   return { zone, sizes, counts, pieces: expected(sizes) };
 }

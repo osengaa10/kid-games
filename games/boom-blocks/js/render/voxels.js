@@ -294,6 +294,52 @@ export class DebrisVoxels {
     this.dirty.mark(slot);
   }
 
+  // One block on its own (a loose single block): position, rotation (quaternion parts), size.
+  writeOne(slot, x, y, z, qx, qy, qz, qw, s) {
+    const x2 = qx + qx;
+    const y2 = qy + qy;
+    const z2 = qz + qz;
+    const xx = qx * x2;
+    const xy = qx * y2;
+    const xz = qx * z2;
+    const yy = qy * y2;
+    const yz = qy * z2;
+    const zz = qz * z2;
+    const wx = qw * x2;
+    const wy = qw * y2;
+    const wz = qw * z2;
+    const m = this.mesh.instanceMatrix.array;
+    const o = slot * 16;
+    m[o] = (1 - (yy + zz)) * s;
+    m[o + 1] = (xy + wz) * s;
+    m[o + 2] = (xz - wy) * s;
+    m[o + 3] = 0;
+    m[o + 4] = (xy - wz) * s;
+    m[o + 5] = (1 - (xx + zz)) * s;
+    m[o + 6] = (yz + wx) * s;
+    m[o + 7] = 0;
+    m[o + 8] = (xz + wy) * s;
+    m[o + 9] = (yz - wx) * s;
+    m[o + 10] = (1 - (xx + yy)) * s;
+    m[o + 11] = 0;
+    m[o + 12] = x;
+    m[o + 13] = y;
+    m[o + 14] = z;
+    m[o + 15] = 1;
+    this.dirty.mark(slot);
+  }
+
+  // Draws nothing in this slot.
+  hide(slot) {
+    this.mesh.instanceMatrix.array.fill(0, slot * 16, slot * 16 + 16);
+    this.dirty.mark(slot);
+  }
+
+  // How many slots to draw (the rest are empty).
+  setCount(n) {
+    this.mesh.count = n;
+  }
+
   // Writes the matrices of a body's blocks: rotation (quaternion q) and position p of the body,
   // each block at its local offset (lx, ly, lz), scaled by s.
   write(slots, lx, ly, lz, p, q, s = 1) {

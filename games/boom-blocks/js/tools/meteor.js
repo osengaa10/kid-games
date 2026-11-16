@@ -143,7 +143,7 @@ export class Meteor {
     g.fx.blast(p.x, p.y, p.z, 1.15);
     // The rock itself breaks into glowing pieces.
     g.fx.embers(p.x, p.y + 1, p.z, 30, 16);
-    g.pieces.blast(p.x, p.y, p.z, 14, 9, 0.6);
+    g.push(p.x, p.y, p.z, 14, 9, 0.6);
     g.blastNear(p.x, p.y, p.z, 9);
     g.wave(p.x, p.z, 1);
     sfx.boom(1, g.panOf(p.x, p.y, p.z));

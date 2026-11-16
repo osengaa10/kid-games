@@ -265,7 +265,7 @@ export class Cannon {
       // It chews through rubble and fallen sections in its way, and shoves the rest aside.
       if (b.frame % 3 === 0) {
         g.destruction.biteLoose(b.pos.x, b.pos.y, b.pos.z, BITE + 0.4, 0.8, 2);
-        g.pieces.blast(b.pos.x, b.pos.y, b.pos.z, 3.5, 5, 0.3);
+        g.push(b.pos.x, b.pos.y, b.pos.z, 3.5, 5, 0.3);
       }
     }
     const onIsland = Math.abs(b.pos.x) < ISLAND && Math.abs(b.pos.z) < ISLAND;
